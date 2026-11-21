@@ -10,7 +10,7 @@
   },
   "license": "UNLICENSED",
   "engines": {
-    "node": "^24.11.0"
+    "node": "^26.13.0"
   },
   "packageManager": "pnpm@12.21.0",
   "scripts": {
@@ -51,7 +51,7 @@
     "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^24.19.2",
+    "@types/node": "^26.6.6",
     "@types/supertest": "^7.2.1",
     "eslint": "^10.15.0",
     "globals": "^17.14.0",
