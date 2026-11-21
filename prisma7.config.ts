@@ -6,7 +6,9 @@ if (existsSync('.env')) process.loadEnvFile('.env')
 
 export default defineConfig({
   schema: 'prisma/schema.prisma',
-  migrations: { path: 'prisma/migrations' },
+  // O seed base (`pnpm db:seed`) cria categorias, turnos e configurações e pode rodar mais de uma vez. No
+  // Prisma 7, nem o `migrate dev` nem o `migrate reset` o rodam sozinhos.
+  migrations: { path: 'prisma/migrations', seed: 'tsx prisma/seed.ts' },
   // Sem a URL, o `prisma generate` funciona; os comandos de migration avisam que ela falta.
   datasource: { url: process.env.DATABASE_URL },
 })
