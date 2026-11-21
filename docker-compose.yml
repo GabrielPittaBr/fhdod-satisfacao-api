@@ -1,0 +1,47 @@
+# PostgreSQL 18 para desenvolver e testar a API. Suba os dois bancos com `docker compose up -d`.
+#   postgres        banco de desenvolvimento (porta 5432), com os dados num volume
+#   postgres-teste  banco dos testes (porta 5433), com os dados só na memória: começa vazio a cada subida
+# Os dois rodam em UTC e UTF-8 e só aceitam conexões desta máquina.
+# Produção e homologação usam o infra/docker-compose.prod.yml (ticket 19).
+
+name: fhdod-satisfacao
+
+x-postgres: &postgres
+  image: postgres:18
+  environment: &ambiente
+    POSTGRES_USER: app
+    POSTGRES_PASSWORD: app
+    POSTGRES_INITDB_ARGS: --encoding=UTF8
+    TZ: UTC
+    PGTZ: UTC
+  command: ['postgres', '-c', 'timezone=UTC', '-c', 'log_timezone=UTC']
+  healthcheck:
+    test: ['CMD-SHELL', 'pg_isready -U app -d $${POSTGRES_DB}']
+    interval: 5s
+    timeout: 5s
+    retries: 10
+
+services:
+  postgres:
+    <<: *postgres
+    environment:
+      <<: *ambiente
+      POSTGRES_DB: satisfacao
+    ports:
+      - 127.0.0.1:5432:5432
+    volumes:
+      # A partir do 18, a imagem guarda os dados em /var/lib/postgresql/18/docker: o volume vai na pasta de cima.
+      - postgres-dados:/var/lib/postgresql
+
+  postgres-teste:
+    <<: *postgres
+    environment:
+      <<: *ambiente
+      POSTGRES_DB: satisfacao_teste
+    ports:
+      - 127.0.0.1:5433:5432
+    tmpfs:
+      - /var/lib/postgresql
+
+volumes:
+  postgres-dados:
