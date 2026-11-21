@@ -10,6 +10,7 @@ import { errorHandler } from './middlewares/error-handler'
 import { httpLogger } from './middlewares/http-logger'
 import { notFound } from './middlewares/not-found'
 import { requestId } from './middlewares/request-id'
+import { criarDocsRoutes } from './modules/docs/docs.routes'
 import healthRoutes from './modules/health/health.routes'
 import routes from './routes'
 
@@ -18,10 +19,16 @@ interface OpcoesDoApp {
   rotas?: Router
   /** Logger das requisições. Os testes passam um que grava na memória. */
   logger?: Logger
+  /** Swagger em /api/docs. Padrão: o DOCS_ENABLED. */
+  docs?: boolean
 }
 
 /** Cria o Express com a cadeia de middlewares do plano ("Ciclo de uma requisição"). */
-export function createApp({ rotas = routes, logger = loggerPadrao }: OpcoesDoApp = {}) {
+export function createApp({
+  rotas = routes,
+  logger = loggerPadrao,
+  docs = env.DOCS_ENABLED,
+}: OpcoesDoApp = {}) {
   const app = express()
   app.disable('x-powered-by')
   app.set('trust proxy', 1) // a API fica atrás do Caddy
@@ -34,6 +41,7 @@ export function createApp({ rotas = routes, logger = loggerPadrao }: OpcoesDoApp
   app.use(cookieParser())
 
   app.use('/api', healthRoutes)
+  if (docs) app.use('/api/docs', criarDocsRoutes())
   app.use('/api/v1', rotas)
 
   app.use(notFound)

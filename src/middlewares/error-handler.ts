@@ -1,7 +1,6 @@
 import type { ErrorRequestHandler } from 'express'
 import { AppError } from '../shared/errors/app-error'
 
-const MENSAGEM_ERRO_INTERNO = 'Erro inesperado. Tente de novo em instantes.'
 const MENSAGEM_CORPO_GRANDE = 'Os dados enviados passam do tamanho permitido.'
 const MENSAGEM_CORPO_ILEGIVEL = 'Não foi possível ler os dados enviados.'
 
@@ -24,10 +23,7 @@ export const errorHandler: ErrorRequestHandler = (erro, req, res, next) => {
   // A resposta já começou a sair e não dá mais para trocá-la: o Express encerra a conexão.
   if (res.headersSent) return next(erro)
 
-  const appError =
-    erro instanceof AppError
-      ? erro
-      : (erroDosDadosEnviados(erro) ?? new AppError('ERRO_INTERNO', MENSAGEM_ERRO_INTERNO))
+  const appError = erro instanceof AppError ? erro : (erroDosDadosEnviados(erro) ?? AppError.interno())
 
   if (appError.codigo === 'ERRO_INTERNO') res.err = erro instanceof Error ? erro : new Error(String(erro))
 

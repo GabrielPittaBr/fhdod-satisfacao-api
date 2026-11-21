@@ -13,5 +13,5 @@
     "noFallthroughCasesInSwitch": true,
     "types": ["node"]
   },
-  "include": ["src", "tests", "prisma", "*.ts"]
+  "include": ["src", "tests", "scripts", "prisma", "*.ts"]
 }

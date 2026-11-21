@@ -1,13 +1,6 @@
 import { logger } from '../../config/logger'
 import { healthRepository } from './health.repository'
-
-export type Estado = 'ok' | 'indisponivel'
-
-/** Como está a API: `status` é o geral, e cada dependência tem o seu. */
-export interface Saude {
-  status: Estado
-  banco: Estado
-}
+import type { Saude } from './health.schemas'
 
 export const healthService = {
   async verificar(): Promise<Saude> {

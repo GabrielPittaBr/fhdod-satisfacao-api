@@ -36,7 +36,7 @@ git push -u origin feat/05-login-e-sessao
 gh pr create --base develop
 ```
 
-O PR é pequeno e diz o que mudou, como testar e qual é o ticket. Atenção à base: o padrão do GitHub é a `main`, e o PR de uma tarefa vai sempre para a `develop`.
+O PR é pequeno e diz o que mudou, como testar e qual é o ticket; o modelo de PR (`.github/pull_request_template.md`) já traz essas seções. Atenção à base: o padrão do GitHub é a `main`, e o PR de uma tarefa vai sempre para a `develop`.
 
 ## Padrão de commits
 
@@ -95,7 +95,7 @@ Uma tarefa da API só está pronta quando:
 - [ ] os critérios de aceite do ticket estão marcados e o status está `done`;
 - [ ] outra pessoa do time revisou e aprovou o PR.
 
-Enquanto o CI, o Swagger e os testes não existem (tickets 02 e 03), vale o que já existir; a partir do ticket 03, vale a lista inteira.
+O CI roda lint, tipos, testes, contrato e build em todo pull request e em cada push na `develop` e na `main`. Rode na máquina `pnpm lint`, `pnpm typecheck`, `pnpm test` e `pnpm build` antes de abrir o PR, para o CI não ser o primeiro a acusar.
 
 ### Registro da entrega
 
@@ -177,6 +177,32 @@ O código é organizado por assunto, não por tipo de arquivo. Cada módulo fica
 - Os schemas registrados no OpenAPI usam os mesmos nomes dos tipos do front (`Setor`, `Pergunta`, `Sessao`...).
 - O front já tem as telas prontas sobre um mock que segue o contrato do plano. Antes de criar ou mudar uma rota, confira o que ele espera em `../fhdod-satisfacao-web/src/lib/api/tipos.ts` e `../fhdod-satisfacao-web/src/mocks/`. Diferenças entre o mock e o plano ficam no registro e no PR.
 
+### Como documentar uma rota
+
+A documentação sai dos mesmos schemas Zod que validam as rotas. O Swagger (`/api/docs`, com a API rodando) e o `openapi.json` mostram o mesmo documento, montado em `src/config/openapi.ts`.
+
+1. No `<modulo>.schemas.ts`, os schemas de entrada de cada rota ficam num objeto só, que vai para o `validate` da rota e para a documentação: `export const editarSetor = { params: setorParams, body: editarSetorBody }`.
+2. Os schemas de saída que viram tipos no front levam, com `.meta({ id })`, o mesmo nome do tipo do front em `tipos.ts`: `z.object({ ... }).meta({ id: 'Setor' })`. Assim o front troca o tipo escrito à mão pelo gerado sem renomear nada.
+3. No `<modulo>.docs.ts`, a função `documentar<Modulo>(registry)` registra cada rota com o `documentarRota`, de `src/shared/http/documentacao.ts`:
+
+   ```ts
+   documentarRota(registry, {
+     method: 'patch',
+     path: '/api/v1/setores/{id}',
+     tags: ['Setores'],
+     summary: 'Edita nome, slug ou descrição',
+     requisicao: editarSetor, // o mesmo objeto do validate(editarSetor)
+     respostas: { 200: respostaJson('Setor editado.', envelope(setorSchema)) },
+     erros: ['NAO_AUTENTICADO', 'SEM_PERMISSAO', 'NAO_ENCONTRADO', 'CONFLITO'],
+   })
+   ```
+
+   O `path` é o caminho completo, com os parâmetros no formato do OpenAPI (`{id}`). Listas paginadas usam `lista(schema)` no lugar do `envelope`. O 400 `VALIDACAO` (quando a rota valida alguma coisa) e o 500 `ERRO_INTERNO` entram sozinhos, e toda resposta de erro usa o componente `Erro`.
+4. A função entra na lista `MODULOS` de `src/config/openapi.ts`, na ordem em que o módulo aparece no documento.
+5. `pnpm openapi:exportar` grava o `openapi.json`, que vai no mesmo commit da mudança.
+
+O `tests/contrato.test.ts` falha se uma rota do Express não estiver documentada (ou se o documento tiver uma rota que não existe), se uma resposta de erro não usar o `Erro` e se o `openapi.json` não for o que o código gera. Os `*.schemas.ts` e os `*.docs.ts` não importam o `env` nem o Prisma: o `pnpm openapi:exportar` roda sem `.env`, inclusive no CI.
+
 ## Segurança e LGPD
 
 - **Nenhum segredo no Git.** O `.env` nunca é commitado; o `.env.example` traz só os nomes das variáveis e exemplos falsos. Chaves, senhas, tokens e endereços de banco reais não aparecem no código, nos testes, nas issues, nos PRs nem nos registros.
@@ -194,7 +220,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | --- | --- |
 | `pnpm install` | Instala as dependências, gera o cliente do Prisma e liga os hooks do Git |
 | `docker compose up -d` | Sobe o PostgreSQL 18 de desenvolvimento (porta 5432) e o de teste (porta 5433) |
-| `pnpm dev` | Roda a API em `http://localhost:3333`, recarregando a cada alteração |
+| `pnpm dev` | Roda a API em `http://localhost:3333`, recarregando a cada alteração; o Swagger fica em `/api/docs` |
 | `pnpm build` | Gera o build em `dist/server.js` |
 | `pnpm start` | Roda o build |
 | `pnpm lint` | ESLint |
@@ -203,6 +229,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | `pnpm test --project unit` | Só os testes que não precisam de banco |
 | `pnpm test:watch` | Testes em modo de observação |
 | `pnpm format` | Formata o código com o Prettier |
+| `pnpm openapi:exportar` | Grava o contrato da API em `openapi.json`, que é commitado junto com a mudança |
 | `pnpm db:generate` | Gera de novo o cliente do Prisma depois de mudar o `prisma/schema.prisma` |
 | `pnpm db:migrate` | Cria e aplica uma migration no banco de desenvolvimento |
 | `pnpm db:deploy` | Aplica as migrations pendentes (homologação e produção) |
@@ -210,6 +237,8 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | `pnpm db:studio` | Abre o Prisma Studio para ver os dados |
 
 - **Antes de cada commit**, o Husky roda o ESLint e o Prettier nos arquivos alterados (lint-staged), e o commitlint confere a mensagem: Conventional Commits, com os tipos deste arquivo e sem coautoria nem assinatura do Claude.
+- **CI:** o `.github/workflows/ci.yml` instala com o pnpm (com cache) e roda lint, tipos, testes (com um serviço PostgreSQL 18), contrato e build em todo pull request e em cada push na `develop` e na `main`. O passo do contrato roda o `pnpm openapi:exportar` e falha se o `openapi.json` mudou sem ser commitado. O modelo de PR fica em `.github/pull_request_template.md`.
+- **Swagger:** ligado em development e test e desligado em production, a não ser que `DOCS_ENABLED=true` (a homologação o liga assim).
 - **Variáveis de ambiente:** todas estão no `.env.example`, com o que cada uma faz. Uma variável nova entra no `src/config/env.ts` e no `.env.example`, no mesmo commit.
 - **Banco de teste:** o `postgres-teste` do compose guarda os dados só na memória e começa vazio a cada subida. Os testes nunca leem o `.env`; para usar outro banco de teste, defina `TEST_DATABASE_URL`.
 
@@ -220,5 +249,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | Regras de negócio, arquitetura e decisões | [`docs/Plano de Desenvolvimento - FHDOD.md`](docs/Plano%20de%20Desenvolvimento%20-%20FHDOD.md) |
 | Tickets | [`docs/tickets/`](docs/tickets/) e as issues do GitHub |
 | Registros das entregas | [`docs/registros/`](docs/registros/) |
+| Contrato da API (OpenAPI) | [`openapi.json`](openapi.json), montado em [`src/config/openapi.ts`](src/config/openapi.ts); com a API rodando, o Swagger em `/api/docs` |
+| CI e modelo de pull request | [`.github/`](.github/) |
 | Configuração do Claude Code para o time | [`.claude/settings.json`](.claude/settings.json) |
 | Front-end | `../fhdod-satisfacao-web`, com o `docs/plano-frontend.md` e, depois do ticket 01 do front, o próprio `AGENTS.md` |
