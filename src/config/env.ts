@@ -1,0 +1,90 @@
+import { z } from 'zod'
+
+// Variáveis de ambiente da API, validadas ao iniciar: se faltar alguma ou alguma estiver errada, a API nem sobe.
+// Cada variável nova entra aqui, no COMO_PREENCHER e no .env.example.
+
+const NIVEIS_DE_LOG = ['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'] as const
+
+/** Origem de um site, como http://localhost:5173: protocolo, host e porta, sem caminho nem barra no fim. */
+function ehOrigem(valor: string) {
+  try {
+    const url = new URL(valor)
+    return (url.protocol === 'http:' || url.protocol === 'https:') && url.origin === valor
+  } catch {
+    return false
+  }
+}
+
+const schema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+  PORT: z.coerce.number().int().min(1).max(65_535).default(3333),
+  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+  CORS_ORIGIN: z
+    .string()
+    .transform((valor) =>
+      valor
+        .split(',')
+        .map((origem) => origem.trim())
+        .filter(Boolean),
+    )
+    .pipe(z.array(z.string().refine(ehOrigem)).min(1)),
+  LOG_LEVEL: z.enum(NIVEIS_DE_LOG).default('info'),
+})
+
+export type Env = z.output<typeof schema>
+
+type Variavel = keyof typeof schema.shape
+
+const VARIAVEIS = Object.keys(schema.shape) as Variavel[]
+
+/** O que escrever em cada variável. A mensagem de erro nunca mostra o valor, que pode ser segredo. */
+const COMO_PREENCHER: Record<Variavel, string> = {
+  NODE_ENV: 'use development, test ou production',
+  PORT: 'use um número de porta de 1 a 65535, como 3333',
+  DATABASE_URL: 'use uma URL do PostgreSQL, como postgresql://usuario:senha@localhost:5432/banco',
+  CORS_ORIGIN: 'use a origem do front, como http://localhost:5173; várias origens vão separadas por vírgula',
+  LOG_LEVEL: `use ${NIVEIS_DE_LOG.join(', ')}`,
+}
+
+export class ErroDeAmbiente extends Error {
+  constructor(problemas: string[]) {
+    super(
+      [
+        'A API não subiu: há variáveis de ambiente faltando ou inválidas.',
+        ...problemas.map((problema) => `  - ${problema}`),
+        'Confira o .env (o modelo, com todas as variáveis, está no .env.example).',
+      ].join('\n'),
+    )
+    this.name = 'ErroDeAmbiente'
+  }
+}
+
+/** Valida as variáveis de `fonte`. Texto vazio (`CHAVE=`) conta como variável não definida. */
+export function lerEnv(fonte: Record<string, string | undefined>): Env {
+  const entrada = Object.fromEntries(
+    VARIAVEIS.map((variavel) => [variavel, fonte[variavel] === '' ? undefined : fonte[variavel]]),
+  )
+  const resultado = schema.safeParse(entrada)
+  if (resultado.success) return resultado.data
+
+  const invalidas = new Set(resultado.error.issues.map((problema) => problema.path[0] as Variavel))
+  const problemas = VARIAVEIS.filter((variavel) => invalidas.has(variavel)).map((variavel) =>
+    entrada[variavel] === undefined
+      ? `${variavel} não foi definida (${COMO_PREENCHER[variavel]})`
+      : `${variavel} está inválida: ${COMO_PREENCHER[variavel]}`,
+  )
+  throw new ErroDeAmbiente(problemas)
+}
+
+function carregarEnv(): Env {
+  try {
+    return lerEnv(process.env)
+  } catch (erro) {
+    if (!(erro instanceof ErroDeAmbiente)) throw erro
+    // O logger depende destas variáveis, então o aviso sai direto no terminal, sem pilha de chamadas.
+    console.error(erro.message)
+    process.exit(1)
+  }
+}
+
+export const env = carregarEnv()

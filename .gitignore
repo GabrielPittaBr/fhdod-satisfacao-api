@@ -144,3 +144,10 @@ vite.config.ts.timestamp-*
 
 # Claude Code: configuração pessoal (a do time fica em .claude/settings.json)
 .claude/settings.local.json
+
+# Projeto usa pnpm
+package-lock.json
+yarn.lock
+
+# Cliente do Prisma, gerado no `pnpm install` (prisma generate)
+src/generated/
