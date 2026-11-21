@@ -1,0 +1,49 @@
+import { OpenApiGeneratorV31, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
+import pacote from '../../package.json' with { type: 'json' }
+import { documentarHealth } from '../modules/health/health.docs'
+import { codigoDeErroSchema, detalheErroSchema, erroSchema } from '../shared/errors/erro.schemas'
+import { metaSchema } from '../shared/http/pagination'
+
+// Monta o documento OpenAPI da API, o mesmo do Swagger (/api/docs) e do openapi.json que o front usa para
+// gerar os tipos. Este arquivo e os `*.docs.ts` não leem variáveis de ambiente: o `pnpm openapi:exportar`
+// roda sem .env, inclusive no CI.
+
+/**
+ * A documentação de cada módulo, na ordem em que as rotas aparecem no documento. Módulo novo entra aqui
+ * com a função do seu `<modulo>.docs.ts`; o teste de contrato acusa rota sem documentação.
+ */
+const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [documentarHealth]
+
+/**
+ * O erro padrão e o `meta` das listas entram no documento mesmo antes de uma rota usá-los. Vão como
+ * definições `{ type: 'schema' }`: soltos, os schemas do Zod 4 são ignorados pelo gerador, porque já têm
+ * uma propriedade `type`.
+ */
+const COMPONENTES_COMUNS = [erroSchema, detalheErroSchema, codigoDeErroSchema, metaSchema].map((schema) => ({
+  type: 'schema' as const,
+  schema,
+}))
+
+const DESCRICAO = `Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.
+
+- Sucesso: \`{ "data": ... }\`. Listas paginadas: \`{ "data": [...], "meta": { "pagina", "porPagina", "total" } }\`.
+- Erro: sempre o componente \`Erro\`, \`{ "erro": { "codigo", "mensagem", "detalhes", "requestId" } }\`. A \`mensagem\` é escrita para quem está na tela.
+- Toda resposta traz o cabeçalho \`X-Request-Id\`, o mesmo \`requestId\` dos erros e do log.`
+
+export function gerarDocumentoOpenApi() {
+  const registry = new OpenAPIRegistry()
+  for (const documentar of MODULOS) documentar(registry)
+
+  const gerador = new OpenApiGeneratorV31([...COMPONENTES_COMUNS, ...registry.definitions], {
+    sortComponents: 'alphabetically',
+  })
+  return gerador.generateDocument({
+    openapi: '3.1.0',
+    info: { title: 'API de Satisfação Hospitalar da FHDOD', version: pacote.version, description: DESCRICAO },
+  })
+}
+
+/** O documento como fica no openapi.json: JSON com dois espaços e quebra de linha no fim. */
+export function serializarDocumento(documento: object) {
+  return `${JSON.stringify(documento, null, 2)}\n`
+}

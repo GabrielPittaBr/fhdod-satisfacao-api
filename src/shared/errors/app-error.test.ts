@@ -27,5 +27,10 @@ describe('AppError', () => {
       message: 'Já existe um setor com este endereço',
     })
     expect(AppError.limiteAtingido()).toMatchObject({ codigo: 'LIMITE_ATINGIDO', status: 429 })
+    expect(AppError.interno()).toMatchObject({
+      codigo: 'ERRO_INTERNO',
+      status: 500,
+      message: 'Erro inesperado. Tente de novo em instantes.',
+    })
   })
 })

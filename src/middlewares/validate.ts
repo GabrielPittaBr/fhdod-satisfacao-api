@@ -1,11 +1,15 @@
 import type { Request, RequestHandler } from 'express'
-import type { z, ZodType } from 'zod'
+import type { z, ZodObject, ZodPipe, ZodType } from 'zod'
 import { AppError, type DetalheErro } from '../shared/errors/app-error'
 
-/** Schemas Zod de uma rota. */
+/**
+ * Schemas Zod de uma rota. O mesmo objeto vai para o `validate` da rota e para o `documentarRota` do
+ * `<modulo>.docs.ts`, e assim o Swagger descreve exatamente o que é validado. Params e query são sempre
+ * objetos: cada campo vira um parâmetro no documento.
+ */
 export interface EsquemasDaRota {
-  params?: ZodType
-  query?: ZodType
+  params?: ZodObject | ZodPipe<ZodObject>
+  query?: ZodObject | ZodPipe<ZodObject>
   body?: ZodType
 }
 
