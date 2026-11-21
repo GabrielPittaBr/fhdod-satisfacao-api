@@ -117,6 +117,20 @@ Cada entrega ganha um arquivo em `docs/registros/`, no mesmo formato do front: `
 - Arquivos em kebab-case com o sufixo da camada: `perguntas.service.ts`.
 - Banco: tabelas e colunas em snake_case, sem acentos. Consultas sempre pelo Prisma ou por SQL parametrizado, nunca com texto concatenado. Migration já aplicada não se edita: muda-se com uma migration nova.
 
+### Modelo de dados
+
+As 14 tabelas do MVP estão no `prisma/schema.prisma`, e as migrations, em `prisma/migrations/`. Toda mudança no banco é uma migration nova, criada pelo `pnpm db:migrate`.
+
+- **Instantes** em `@db.Timestamptz(3)`, gravados em UTC; sem ele, o Prisma criaria `timestamp` sem fuso. Data sem hora, como a do atendimento, em `@db.Date`. Os relatórios convertem para o horário de Brasília com `AT TIME ZONE 'America/Sao_Paulo'`.
+- **O que o Prisma não declara** (CHECK e índice sobre expressão) vai em SQL no fim da migration: crie-a com `pnpm db:migrate --create-only`, acrescente o SQL e aplique com `pnpm db:migrate`. O Prisma não lê nem compara essas restrições, então nenhuma migration gerada depois as apaga. Hoje são os CHECKs de `nps` (0 a 10), de `valor_numero` (1 a 5) e dos horários dos turnos (`HH:mm`), e o índice único sobre `lower(nome)` das categorias.
+- **Chave estrangeira não cria índice** no PostgreSQL. A coluna usada para buscar registros filhos ganha `@@index` no schema; as que não precisam ficam, com o motivo, na lista `CHAVES_SEM_INDICE` de `tests/integration/modelo-de-dados.test.ts`, que falha quando aparece uma chave nova sem índice.
+- **Nada se apaga de verdade:** setores, perguntas, categorias e usuários são desativados. Por isso as referências são `RESTRICT`; só as partes de uma resposta (itens, comentário e pedido de retorno), as sessões e os setores de um usuário saem junto com o dono.
+- **Nome repetido:** o Prisma devolve o erro de único com o código `P2002`, também no índice de `lower(nome)` das categorias. O service o traduz em 409 `CONFLITO`, com a mensagem para o usuário.
+- **Turnos:** os horários são texto `HH:mm` e saem assim do banco. O fim pode ser menor que o início, como no turno da noite.
+- **Configurações:** as chaves e os valores padrão ficam em `src/shared/constants/configuracoes.ts`, e o valor de cada uma, em JSONB, na tabela `configuracoes`.
+- **Seed base** (`pnpm db:seed`, com o código em `prisma/seeds/base.ts`): categorias, turnos provisórios e configurações. Só cria o que falta e nunca muda o que existe, então roda em produção e quantas vezes for preciso. Os dados de demonstração ficam num comando à parte (ticket 12).
+- **Cliente do Prisma:** depois de mudar o schema, rode `pnpm db:generate`. No Prisma 7, o `migrate dev` não gera mais o cliente.
+
 ### Organização por módulo
 
 O código é organizado por assunto, não por tipo de arquivo. Cada módulo fica em `src/modules/<modulo>/`, com os mesmos arquivos em todos eles:
@@ -231,22 +245,25 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | `pnpm format` | Formata o código com o Prettier |
 | `pnpm openapi:exportar` | Grava o contrato da API em `openapi.json`, que é commitado junto com a mudança |
 | `pnpm db:generate` | Gera de novo o cliente do Prisma depois de mudar o `prisma/schema.prisma` |
-| `pnpm db:migrate` | Cria e aplica uma migration no banco de desenvolvimento |
-| `pnpm db:deploy` | Aplica as migrations pendentes (homologação e produção) |
-| `pnpm db:reset` | Apaga o banco de desenvolvimento e aplica todas as migrations de novo |
-| `pnpm db:studio` | Abre o Prisma Studio para ver os dados |
+| `pnpm db:migrate` | Cria e aplica uma migration no banco de desenvolvimento; `--create-only` só cria, para acrescentar SQL. Não gera o cliente: rode `pnpm db:generate` depois |
+| `pnpm db:deploy` | Aplica as migrations pendentes, sem criar nenhuma: banco recém-criado, homologação e produção |
+| `pnpm db:seed` | Seed base: categorias, turnos provisórios e configurações padrão. Só cria o que falta, então pode rodar de novo e em produção |
+| `pnpm db:reset` | Apaga o banco de desenvolvimento, aplica todas as migrations de novo e roda o seed base |
+| `pnpm db:studio` | Abre o Prisma Studio em `http://localhost:5555` para ver e editar os dados |
 
 - **Antes de cada commit**, o Husky roda o ESLint e o Prettier nos arquivos alterados (lint-staged), e o commitlint confere a mensagem: Conventional Commits, com os tipos deste arquivo e sem coautoria nem assinatura do Claude.
 - **CI:** o `.github/workflows/ci.yml` instala com o pnpm (com cache) e roda lint, tipos, testes (com um serviço PostgreSQL 18), contrato e build em todo pull request e em cada push na `develop` e na `main`. O passo do contrato roda o `pnpm openapi:exportar` e falha se o `openapi.json` mudou sem ser commitado. O modelo de PR fica em `.github/pull_request_template.md`.
 - **Swagger:** ligado em development e test e desligado em production, a não ser que `DOCS_ENABLED=true` (a homologação o liga assim).
 - **Variáveis de ambiente:** todas estão no `.env.example`, com o que cada uma faz. Uma variável nova entra no `src/config/env.ts` e no `.env.example`, no mesmo commit.
-- **Banco de teste:** o `postgres-teste` do compose guarda os dados só na memória e começa vazio a cada subida. Os testes nunca leem o `.env`; para usar outro banco de teste, defina `TEST_DATABASE_URL`.
+- **Banco de teste:** o `postgres-teste` do compose guarda os dados só na memória e começa vazio a cada subida. Os testes nunca leem o `.env`; para usar outro banco de teste, defina `TEST_DATABASE_URL`. Antes dos testes de integração, o `tests/setup.ts` apaga o schema do banco de teste e aplica as migrations, e só faz isso num banco com "test" no nome. Os testes que gravam no banco começam com o `limparBanco()`, de `tests/helpers/banco.ts`.
+- **Reset com agente de IA:** o Prisma 7 recusa o `prisma migrate reset` (e o `pnpm db:reset`) quando quem roda é um agente de IA, e pede o consentimento de quem está usando. O setup dos testes não usa o reset, então o `pnpm test` roda igual para pessoas, agentes e o CI.
 
 ## Onde estão as coisas
 
 | O quê | Onde |
 | --- | --- |
 | Regras de negócio, arquitetura e decisões | [`docs/Plano de Desenvolvimento - FHDOD.md`](docs/Plano%20de%20Desenvolvimento%20-%20FHDOD.md) |
+| Modelo de dados, migrations e seed base | [`prisma/schema.prisma`](prisma/schema.prisma), [`prisma/migrations/`](prisma/migrations/) e [`prisma/seed.ts`](prisma/seed.ts), com o código do seed em [`prisma/seeds/`](prisma/seeds/) |
 | Tickets | [`docs/tickets/`](docs/tickets/) e as issues do GitHub |
 | Registros das entregas | [`docs/registros/`](docs/registros/) |
 | Contrato da API (OpenAPI) | [`openapi.json`](openapi.json), montado em [`src/config/openapi.ts`](src/config/openapi.ts); com a API rodando, o Swagger em `/api/docs` |
