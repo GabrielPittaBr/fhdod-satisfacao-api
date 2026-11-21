@@ -12,8 +12,12 @@ Precisa de Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker.
 pnpm install            # dependências, cliente do Prisma e hooks do Git
 cp .env.example .env    # variáveis de desenvolvimento, já apontando para o banco do Docker
 docker compose up -d    # PostgreSQL 18 de desenvolvimento e de teste
+pnpm db:deploy          # cria as tabelas, aplicando as migrations
+pnpm db:seed            # categorias, turnos provisórios e configurações padrão
 pnpm dev                # API em http://localhost:3333, recarregando a cada alteração
 ```
+
+Para ver os dados, `pnpm db:studio` abre o Prisma Studio em <http://localhost:5555>.
 
 Para conferir, abra <http://localhost:3333/api/health>. Com o banco no ar, a resposta é `{"data":{"status":"ok","banco":"ok"}}`; sem ele, o status é 503.
 

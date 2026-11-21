@@ -1,4 +1,11 @@
-// Modelo de dados da API (PostgreSQL 18). As tabelas entram a partir do ticket 04.
+// Modelo de dados do MVP (PostgreSQL 18): as 14 tabelas da seção "Modelo de dados" do plano.
+// No banco, tabelas, colunas e tipos enumerados ficam em snake_case; no código, os nomes do Prisma.
+// O que o Prisma não declara (os CHECKs e o índice único sobre lower(nome) das categorias) está em SQL, no fim
+// da migration modelo_de_dados_do_mvp.
+// Todo instante é timestamptz(3), gravado em UTC; os relatórios convertem para o horário de Brasília.
+// Referências que o histórico usa são RESTRICT (nada é apagado de verdade: setores, perguntas, categorias e
+// usuários são desativados). Só saem junto com o dono as partes de uma resposta (itens, comentário e pedido
+// de retorno), as sessões e os setores de um usuário.
 // A conexão fica no prisma7.config.ts, e a API conecta pelo src/database/prisma.ts.
 
 generator client {
@@ -8,4 +15,325 @@ generator client {
 
 datasource db {
   provider = "postgresql"
+}
+
+// ---------- Tipos enumerados ----------
+
+enum Perfil {
+  SUPER_ADMIN
+  GESTOR
+  OUVIDORIA
+  VISUALIZADOR
+
+  @@map("perfil")
+}
+
+enum TipoPergunta {
+  ESCALA_1_5
+  SIM_NAO
+  MULTIPLA_ESCOLHA
+  TEXTO
+
+  @@map("tipo_pergunta")
+}
+
+/// WHATSAPP fica pronto para a fase 3; a pesquisa do MVP aceita só WEB e TOTEM.
+enum Canal {
+  WEB
+  TOTEM
+  WHATSAPP
+
+  @@map("canal")
+}
+
+enum Classificacao {
+  NORMAL
+  BAIXA
+  BAIXISSIMA
+
+  @@map("classificacao")
+}
+
+enum TipoComentario {
+  ELOGIO
+  RECLAMACAO
+  SUGESTAO
+  OUTRO
+
+  @@map("tipo_comentario")
+}
+
+/// No MVP todo pedido de retorno fica NOVO; os outros status são do fluxo da fase 2.
+enum StatusRetorno {
+  NOVO
+  PENDENTE
+  EM_ATENDIMENTO
+  RESOLVIDO
+
+  @@map("status_retorno")
+}
+
+// ---------- Acesso ----------
+
+/// Contas do painel. O e-mail é gravado em minúsculas pelo service.
+model Usuario {
+  id            Int       @id @default(autoincrement())
+  nome          String
+  email         String    @unique
+  senhaHash     String    @map("senha_hash")
+  perfil        Perfil
+  ativo         Boolean   @default(true)
+  /// A conta nasce com senha provisória, e a troca é obrigatória no primeiro acesso.
+  trocarSenha   Boolean   @default(true) @map("trocar_senha")
+  ultimoLoginEm DateTime? @map("ultimo_login_em") @db.Timestamptz(3)
+  criadoEm      DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm  DateTime  @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  setores                UsuarioSetor[]
+  refreshTokens          RefreshToken[]
+  contatosResponsavel    ContatoRetorno[]
+  telasCriadas           TvTela[]
+  configuracoesAlteradas Configuracao[]
+  auditoria              Auditoria[]
+
+  @@map("usuarios")
+}
+
+/// Setores de cada usuário: o escopo de gestores e visualizadores.
+model UsuarioSetor {
+  usuarioId Int @map("usuario_id")
+  setorId   Int @map("setor_id")
+
+  usuario Usuario @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  setor   Setor   @relation(fields: [setorId], references: [id], onDelete: Cascade)
+
+  // A chave composta começa pelo usuário e já serve às buscas por ele; as buscas pelo setor ganham índice.
+  @@id([usuarioId, setorId])
+  @@index([setorId])
+  @@map("usuario_setores")
+}
+
+/// Sessões ativas. Guarda só o hash do token; cada uso revoga o token e aponta para o que o substituiu.
+model RefreshToken {
+  id               Int       @id @default(autoincrement())
+  usuarioId        Int       @map("usuario_id")
+  tokenHash        String    @unique @map("token_hash") @db.VarChar(64)
+  expiraEm         DateTime  @map("expira_em") @db.Timestamptz(3)
+  revogadoEm       DateTime? @map("revogado_em") @db.Timestamptz(3)
+  substituidoPorId Int?      @unique @map("substituido_por_id")
+
+  usuario        Usuario       @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  substituidoPor RefreshToken? @relation("Substituicao", fields: [substituidoPorId], references: [id], onDelete: SetNull)
+  substitui      RefreshToken? @relation("Substituicao")
+
+  @@index([usuarioId])
+  @@map("refresh_tokens")
+}
+
+// ---------- Cadastros ----------
+
+/// Unidades com pesquisa própria. O slug forma os endereços /s/:slug e /totem/:slug.
+model Setor {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  slug         String   @unique
+  descricao    String?
+  ativo        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  usuarios  UsuarioSetor[]
+  perguntas Pergunta[]
+  respostas Resposta[]
+
+  @@map("setores")
+}
+
+/// Etapas comparáveis entre setores (Recepção, Triagem...). O nome não se repete nem com maiúsculas
+/// diferentes: o índice único sobre lower(nome) está na migration.
+model Categoria {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  ordem        Int
+  ativa        Boolean  @default(true)
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  perguntas   Pergunta[]
+  itens       RespostaItem[]
+  comentarios Comentario[]
+
+  @@map("categorias")
+}
+
+/// Períodos do dia. Os horários são texto no formato HH:mm, conferido por CHECKs na migration. O fim pode
+/// ser menor que o início: o turno da noite passa da meia-noite.
+model Turno {
+  id           Int      @id @default(autoincrement())
+  nome         String
+  horaInicio   String   @map("hora_inicio") @db.VarChar(5)
+  horaFim      String   @map("hora_fim") @db.VarChar(5)
+  ordem        Int
+  criadoEm     DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  respostas Resposta[]
+
+  @@map("turnos")
+}
+
+/// Perguntas de cada setor. Nunca são apagadas: a desativada sai da pesquisa e continua no histórico.
+model Pergunta {
+  id           Int          @id @default(autoincrement())
+  setorId      Int          @map("setor_id")
+  categoriaId  Int          @map("categoria_id")
+  texto        String
+  tipo         TipoPergunta
+  /// Só a múltipla escolha tem opções; nos outros tipos, a lista fica vazia.
+  opcoes       String[]     @default([])
+  ordem        Int
+  ativa        Boolean      @default(true)
+  criadoEm     DateTime     @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm DateTime     @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  setor     Setor          @relation(fields: [setorId], references: [id])
+  categoria Categoria      @relation(fields: [categoriaId], references: [id])
+  itens     RespostaItem[]
+
+  @@index([setorId])
+  @@map("perguntas")
+}
+
+// ---------- Pesquisa ----------
+
+/// Um envio de pesquisa. O NPS é coluna obrigatória, de 0 a 10 (CHECK na migration).
+model Resposta {
+  id                       Int           @id @default(autoincrement())
+  setorId                  Int           @map("setor_id")
+  canal                    Canal
+  dataAtendimento          DateTime      @map("data_atendimento") @db.Date
+  turnoId                  Int           @map("turno_id")
+  nps                      Int           @db.SmallInt
+  classificacao            Classificacao
+  enviadoEm                DateTime      @default(now()) @map("enviado_em") @db.Timestamptz(3)
+  chaveIdempotencia        String        @unique @map("chave_idempotencia") @db.Uuid
+  tokenComplementoHash     String?       @map("token_complemento_hash") @db.VarChar(64)
+  tokenComplementoExpiraEm DateTime?     @map("token_complemento_expira_em") @db.Timestamptz(3)
+
+  setor      Setor           @relation(fields: [setorId], references: [id])
+  turno      Turno           @relation(fields: [turnoId], references: [id])
+  itens      RespostaItem[]
+  comentario Comentario?
+  contato    ContatoRetorno?
+
+  @@index([setorId, enviadoEm])
+  @@index([dataAtendimento])
+  @@map("respostas")
+}
+
+/// Cada pergunta respondida. Copia o texto, o tipo e a categoria da pergunta no momento da resposta, para o
+/// histórico não mudar de sentido. A nota vai de 1 a 5 (CHECK na migration) e fica nula nos outros tipos.
+model RespostaItem {
+  id            Int          @id @default(autoincrement())
+  respostaId    Int          @map("resposta_id")
+  perguntaId    Int          @map("pergunta_id")
+  categoriaId   Int          @map("categoria_id")
+  perguntaTexto String       @map("pergunta_texto")
+  tipo          TipoPergunta
+  valorNumero   Int?         @map("valor_numero") @db.SmallInt
+  valorTexto    String?      @map("valor_texto")
+
+  resposta  Resposta  @relation(fields: [respostaId], references: [id], onDelete: Cascade)
+  pergunta  Pergunta  @relation(fields: [perguntaId], references: [id])
+  categoria Categoria @relation(fields: [categoriaId], references: [id])
+
+  // Um item por pergunta em cada resposta. O índice único começa pela resposta e já serve às buscas por ela.
+  @@unique([respostaId, perguntaId])
+  // Pergunta com respostas não muda de tipo: a API consulta os itens pela pergunta.
+  @@index([perguntaId])
+  @@index([categoriaId])
+  @@map("resposta_itens")
+}
+
+/// Elogio, reclamação, sugestão ou outro comentário, um por resposta. O tamanho máximo é o das
+/// configurações (texto_limite_caracteres), conferido pela API.
+model Comentario {
+  id          Int            @id @default(autoincrement())
+  respostaId  Int            @unique @map("resposta_id")
+  tipo        TipoComentario
+  texto       String
+  categoriaId Int?           @map("categoria_id")
+
+  resposta  Resposta   @relation(fields: [respostaId], references: [id], onDelete: Cascade)
+  categoria Categoria? @relation(fields: [categoriaId], references: [id], onDelete: Restrict)
+
+  @@map("comentarios")
+}
+
+/// Pedido de retorno ao paciente, um por resposta. O telefone fica cifrado (AES-256-GCM), com os 4 últimos
+/// dígitos em claro para a tela mostrar o número mascarado sem decifrar.
+model ContatoRetorno {
+  id              Int           @id @default(autoincrement())
+  respostaId      Int           @unique @map("resposta_id")
+  telefoneCifrado String        @map("telefone_cifrado")
+  telefoneFinal   String        @map("telefone_final") @db.Char(4)
+  consentimentoEm DateTime      @map("consentimento_em") @db.Timestamptz(3)
+  status          StatusRetorno @default(NOVO)
+  responsavelId   Int?          @map("responsavel_id")
+  observacoes     String?
+  resolvidoEm     DateTime?     @map("resolvido_em") @db.Timestamptz(3)
+
+  resposta    Resposta @relation(fields: [respostaId], references: [id], onDelete: Cascade)
+  responsavel Usuario? @relation(fields: [responsavelId], references: [id], onDelete: Restrict)
+
+  @@index([status])
+  @@map("contatos_retorno")
+}
+
+// ---------- Sistema ----------
+
+/// Telas de TV Wall. O token do link só aparece ao criar a tela; aqui fica o hash.
+model TvTela {
+  id             Int       @id @default(autoincrement())
+  nome           String
+  tokenHash      String    @unique @map("token_hash") @db.VarChar(64)
+  ativa          Boolean   @default(true)
+  ultimoAcessoEm DateTime? @map("ultimo_acesso_em") @db.Timestamptz(3)
+  criadoPorId    Int       @map("criado_por_id")
+  criadoEm       DateTime  @default(now()) @map("criado_em") @db.Timestamptz(3)
+  atualizadoEm   DateTime  @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  criadoPor Usuario @relation(fields: [criadoPorId], references: [id])
+
+  @@map("tv_telas")
+}
+
+/// Parâmetros do sistema: limites de nota, tempos do totem e texto do NPS. As chaves e os valores padrão
+/// estão em src/shared/constants/configuracoes.ts.
+model Configuracao {
+  chave           String   @id
+  valor           Json     @db.JsonB
+  atualizadoPorId Int?     @map("atualizado_por_id")
+  atualizadoEm    DateTime @default(now()) @updatedAt @map("atualizado_em") @db.Timestamptz(3)
+
+  atualizadoPor Usuario? @relation(fields: [atualizadoPorId], references: [id], onDelete: Restrict)
+
+  @@map("configuracoes")
+}
+
+/// Ações sensíveis: logins, mudanças em perguntas e permissões, exportações e acesso a telefones. O IP é o
+/// de quem usa o painel; o do paciente nunca é gravado.
+model Auditoria {
+  id         Int      @id @default(autoincrement())
+  usuarioId  Int?     @map("usuario_id")
+  acao       String
+  entidade   String
+  entidadeId String?  @map("entidade_id")
+  dados      Json?    @db.JsonB
+  ip         String?  @db.Inet
+  criadoEm   DateTime @default(now()) @map("criado_em") @db.Timestamptz(3)
+
+  usuario Usuario? @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  @@map("auditoria")
 }
