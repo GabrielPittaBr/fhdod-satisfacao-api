@@ -23,7 +23,7 @@
 
 | Decisão | Por quê |
 | --- | --- |
-| Node 24 (LTS) no `.nvmrc` e em `engines: ^24.11.0` | O plano pede LTS 22 ou mais recente. O 24 tem suporte até abril de 2028 e é o que está instalado na máquina de desenvolvimento; com o `engines`, o pnpm se recusa a instalar em outra versão |
+| Node 24 (LTS) no `.nvmrc` e em `engines: ^24.11.0`, trocado depois pelo Node 26 ([registro 03](2026-11-21-03-node-26.md)) | O plano pede LTS 22 ou mais recente. O 24 tem suporte até abril de 2028 e é o que está instalado na máquina de desenvolvimento. Com o `engines`, o pnpm avisa quando a versão do Node é outra (ele avisa, mas não impede a instalação) |
 | TypeScript 6.0, como no front | O 7.0 já saiu, mas o typescript-eslint ainda não o aceita (`<6.1.0`) |
 | Prisma 7.10.1 fixo, com `prisma-client`, saída em `src/generated/prisma` e `@prisma/adapter-pg` | É a forma do Prisma 7: cliente em TypeScript, sem motor binário, empacotado pelo tsup junto com a API. A versão fica fixa porque o `latest` do `prisma` no npm aponta para um RC do Prisma 8 |
 | Cliente gerado fora do Git, criado no `pnpm install` (`postinstall`) | É código gerado, refeito a cada mudança do schema |
@@ -63,6 +63,6 @@
 - **Rodar com Docker antes de aprovar.** A máquina onde o ticket foi feito não tem Docker. Quem revisar o PR roda `docker compose up -d` e `pnpm test` e confere `SHOW timezone` e `SHOW server_encoding` nos dois bancos.
 - **Migrations nos testes.** O `tests/setup.ts` hoje só confere a conexão. No ticket 04, ele passa a aplicar as migrations no banco de teste antes da suíte.
 - **CI (ticket 03).** O job de testes precisa de um serviço PostgreSQL 18 e de `TEST_DATABASE_URL` apontando para ele.
-- **Node 26.** Virou o LTS ativo em outubro de 2026. Trocar é decisão do time: `.nvmrc`, `engines` e, no ticket 19, o Dockerfile.
-- **Front.** O ticket 02 do front pede `.editorconfig` e versão do Node iguais às da API: o `.editorconfig` daqui e Node 24. O `.gitattributes` evitaria lá o mesmo problema de CRLF.
+- **Node 26.** Feito no mesmo dia: veja o [registro 03](2026-11-21-03-node-26.md).
+- **Front.** O ticket 02 do front pede `.editorconfig` e versão do Node iguais às da API: o `.editorconfig` daqui e Node 26. O `.gitattributes` evitaria lá o mesmo problema de CRLF.
 - **Prisma 8.** Está em RC; a API fica no 7.10.1 até a versão estável sair e alguém avaliar a migração.

@@ -188,7 +188,7 @@ O código é organizado por assunto, não por tipo de arquivo. Cada módulo fica
 
 ## Comandos do projeto
 
-Node.js 24 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para rodar do zero está no [README](README.md).
+Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para rodar do zero está no [README](README.md).
 
 | Comando | O que faz |
 | --- | --- |
