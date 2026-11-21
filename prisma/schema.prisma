@@ -1,0 +1,11 @@
+// Modelo de dados da API (PostgreSQL 18). As tabelas entram a partir do ticket 04.
+// A conexão fica no prisma7.config.ts, e a API conecta pelo src/database/prisma.ts.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
