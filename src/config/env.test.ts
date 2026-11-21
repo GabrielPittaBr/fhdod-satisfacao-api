@@ -25,7 +25,17 @@ describe('lerEnv', () => {
       DATABASE_URL: validas.DATABASE_URL,
       CORS_ORIGIN: ['https://pesquisa.exemplo.com.br'],
       LOG_LEVEL: 'info',
+      DOCS_ENABLED: false,
     })
+  })
+
+  it('liga o Swagger fora de produção e deixa o DOCS_ENABLED decidir quando ele vem definido', () => {
+    expect(lerEnv({ ...validas, NODE_ENV: 'development' }).DOCS_ENABLED).toBe(true)
+    expect(lerEnv({ ...validas, NODE_ENV: 'test' }).DOCS_ENABLED).toBe(true)
+    expect(lerEnv({ ...validas, NODE_ENV: 'production' }).DOCS_ENABLED).toBe(false)
+    expect(lerEnv({ ...validas, NODE_ENV: 'production', DOCS_ENABLED: 'true' }).DOCS_ENABLED).toBe(true)
+    expect(lerEnv({ ...validas, NODE_ENV: 'development', DOCS_ENABLED: 'false' }).DOCS_ENABLED).toBe(false)
+    expect(lerEnv({ ...validas, NODE_ENV: 'production', DOCS_ENABLED: '' }).DOCS_ENABLED).toBe(false)
   })
 
   it('converte a porta e separa as origens do CORS', () => {
@@ -58,9 +68,10 @@ describe('lerEnv', () => {
       DATABASE_URL: 'mysql://root:senha-secreta@banco:3306/satisfacao',
       CORS_ORIGIN: 'https://pesquisa.exemplo.com.br/',
       LOG_LEVEL: 'tudo',
+      DOCS_ENABLED: 'talvez',
     })
 
-    for (const variavel of ['NODE_ENV', 'PORT', 'DATABASE_URL', 'CORS_ORIGIN', 'LOG_LEVEL']) {
+    for (const variavel of ['NODE_ENV', 'PORT', 'DATABASE_URL', 'CORS_ORIGIN', 'LOG_LEVEL', 'DOCS_ENABLED']) {
       expect(mensagem).toContain(`${variavel} está inválida`)
     }
     expect(mensagem).not.toContain('senha-secreta')
