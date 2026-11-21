@@ -17,4 +17,6 @@ pnpm dev                # API em http://localhost:3333, recarregando a cada alte
 
 Para conferir, abra <http://localhost:3333/api/health>. Com o banco no ar, a resposta é `{"data":{"status":"ok","banco":"ok"}}`; sem ele, o status é 503.
 
-Os testes rodam com `pnpm test`, depois do `docker compose up -d`. Os outros comandos estão no `AGENTS.md`, em "Comandos do projeto".
+As rotas estão documentadas no Swagger, em <http://localhost:3333/api/docs>. O mesmo documento fica no [`openapi.json`](openapi.json), na raiz: é o contrato de que o front gera os tipos, e o `pnpm openapi:exportar` o grava de novo quando uma rota muda.
+
+Os testes rodam com `pnpm test`, depois do `docker compose up -d`. Em todo pull request, o CI do GitHub Actions roda lint, tipos, testes (com um PostgreSQL 18), contrato e build. Os outros comandos estão no `AGENTS.md`, em "Comandos do projeto".
