@@ -49,7 +49,7 @@
 
 - Claude Code, lendo o plano, os tickets 02 e 03 e o `AGENTS.md` e, no front, `src/lib/api/tipos.ts`, `src/lib/api/erro.ts`, `src/mocks/rede.ts`, `eslint.config.js` e `.prettierrc`.
 - As versões foram conferidas no npm em 21/11/2026. O código do pino-http e o carregador de configuração do Prisma foram lidos no `node_modules`, para configurar o log e o `prisma7.config.ts`.
-- **Sem Docker na máquina.** A API e os testes de integração rodaram contra o PostgreSQL local do próprio Prisma CLI (`prisma dev`, feito sobre o PGlite), com `TEST_DATABASE_URL` apontando para ele. Nessa base foram conferidos à mão o health (200, e 503 com o banco desligado), o 404, o JSON malformado, o corpo grande, o CORS, a porta ocupada e o build rodando. O `docker-compose.yml` só passou pela checagem de sintaxe do Prettier.
+- **Sem Docker na máquina.** A API e os testes de integração rodaram contra o PostgreSQL local do próprio Prisma CLI (`prisma dev`, feito sobre o PGlite), com `TEST_DATABASE_URL` apontando para ele. Nessa base foram conferidos à mão o health (200, e 503 com o banco desligado), o 404, o JSON malformado, o corpo grande, o CORS, a porta ocupada e o build rodando. O `docker-compose.yml` só passou pela checagem de sintaxe do Prettier; rodou depois, no [registro 04](2026-11-21-04-verificacao-com-docker.md).
 - Nenhuma skill.
 
 ## O que mudou em relação ao plano
@@ -60,7 +60,7 @@
 
 ## Pendências e dúvidas
 
-- **Rodar com Docker antes de aprovar.** A máquina onde o ticket foi feito não tem Docker. Quem revisar o PR roda `docker compose up -d` e `pnpm test` e confere `SHOW timezone` e `SHOW server_encoding` nos dois bancos.
+- **Rodar com Docker.** Feito no mesmo dia, e tudo passou: veja o [registro 04](2026-11-21-04-verificacao-com-docker.md).
 - **Migrations nos testes.** O `tests/setup.ts` hoje só confere a conexão. No ticket 04, ele passa a aplicar as migrations no banco de teste antes da suíte.
 - **CI (ticket 03).** O job de testes precisa de um serviço PostgreSQL 18 e de `TEST_DATABASE_URL` apontando para ele.
 - **Node 26.** Feito no mesmo dia: veja o [registro 03](2026-11-21-03-node-26.md).
