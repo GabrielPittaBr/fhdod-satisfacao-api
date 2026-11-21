@@ -2,3 +2,5 @@
 *.md
 pnpm-lock.yaml
 src/generated
+# Contrato gerado pelo `pnpm openapi:exportar`: o CI o compara byte a byte com o que o código gera.
+openapi.json

@@ -2,3 +2,5 @@ allowBuilds:
   '@prisma/engines': true
   esbuild: true
   prisma: true
+  # Telemetria de instalação que vem com o swagger-ui-dist (Swagger UI): o script não roda.
+  '@scarf/scarf': false

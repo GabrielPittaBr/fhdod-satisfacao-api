@@ -23,12 +23,16 @@ export const paginacaoSchema = z.object({
 
 export type Paginacao = z.output<typeof paginacaoSchema>
 
-/** O `meta` das listas paginadas. */
-export interface Meta {
-  pagina: number
-  porPagina: number
-  total: number
-}
+/** O `meta` das listas paginadas, com o mesmo nome do tipo do front. */
+export const metaSchema = z
+  .object({
+    pagina: z.number().int().meta({ description: 'Página devolvida, a partir de 1.' }),
+    porPagina: z.number().int().meta({ description: 'Itens por página.' }),
+    total: z.number().int().meta({ description: 'Total de itens, somando todas as páginas.' }),
+  })
+  .meta({ id: 'Meta', description: 'Paginação de uma lista.' })
+
+export type Meta = z.output<typeof metaSchema>
 
 /** `skip` e `take` do Prisma para a página pedida. */
 export function paginar({ pagina, porPagina }: Paginacao) {

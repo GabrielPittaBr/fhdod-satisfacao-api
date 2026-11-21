@@ -1,5 +1,6 @@
 import type { Response } from 'express'
-import type { Meta } from './pagination'
+import { z, type ZodType } from 'zod'
+import { metaSchema, type Meta } from './pagination'
 
 /** Sucesso: `{ data }`. */
 export function responder<T>(res: Response, data: T, status = 200) {
@@ -14,4 +15,16 @@ export function responderLista<T>(res: Response, data: T[], meta: Meta) {
 /** Sucesso sem corpo (logout, desativação). */
 export function responderSemConteudo(res: Response) {
   return res.status(204).end()
+}
+
+// Os mesmos formatos no contrato, para os `*.docs.ts` dos módulos descreverem as respostas.
+
+/** O `{ data }` do `responder`, com o schema do dado. */
+export function envelope<T extends ZodType>(data: T) {
+  return z.object({ data })
+}
+
+/** O `{ data, meta }` do `responderLista`, com o schema de cada item. */
+export function lista<T extends ZodType>(item: T) {
+  return z.object({ data: z.array(item), meta: metaSchema })
 }
