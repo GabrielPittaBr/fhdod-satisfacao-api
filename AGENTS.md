@@ -181,14 +181,37 @@ O código é organizado por assunto, não por tipo de arquivo. Cada módulo fica
 
 - **Nenhum segredo no Git.** O `.env` nunca é commitado; o `.env.example` traz só os nomes das variáveis e exemplos falsos. Chaves, senhas, tokens e endereços de banco reais não aparecem no código, nos testes, nas issues, nos PRs nem nos registros.
 - **Nenhum dado real de paciente**, em lugar nenhum: seed, testes, dados de demonstração, prints, issues, PRs e registros usam só dados inventados.
-- **Telefone, senha e tokens nunca vão para o log**, nem para mensagens de erro. O logger oculta `authorization`, `cookie`, `x-tv-token`, `x-complemento-token`, `senha` e `telefone`; não registre o corpo inteiro de uma requisição.
+- **Telefone, senha e tokens nunca vão para o log**, nem para mensagens de erro. O logger oculta `authorization`, `cookie`, `x-tv-token`, `x-complemento-token`, `senha` e `telefone`, entre outras (a lista fica em `src/config/logger.ts`); não registre o corpo inteiro de uma requisição.
 - O telefone é cifrado no banco (AES-256-GCM), mascarado nas telas e só revelado com a permissão `contatos:ver`, sempre com registro na auditoria.
 - O IP do paciente não é gravado no banco.
 - Ao usar uma ferramenta de IA, não cole nela o `.env`, dumps do banco nem logs de produção.
 
 ## Comandos do projeto
 
-Entram com o ticket 02, junto com o `package.json`.
+Node.js 24 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para rodar do zero está no [README](README.md).
+
+| Comando | O que faz |
+| --- | --- |
+| `pnpm install` | Instala as dependências, gera o cliente do Prisma e liga os hooks do Git |
+| `docker compose up -d` | Sobe o PostgreSQL 18 de desenvolvimento (porta 5432) e o de teste (porta 5433) |
+| `pnpm dev` | Roda a API em `http://localhost:3333`, recarregando a cada alteração |
+| `pnpm build` | Gera o build em `dist/server.js` |
+| `pnpm start` | Roda o build |
+| `pnpm lint` | ESLint |
+| `pnpm typecheck` | Checagem de tipos do TypeScript |
+| `pnpm test` | Testes unitários e de integração; os de integração usam o banco de teste |
+| `pnpm test --project unit` | Só os testes que não precisam de banco |
+| `pnpm test:watch` | Testes em modo de observação |
+| `pnpm format` | Formata o código com o Prettier |
+| `pnpm db:generate` | Gera de novo o cliente do Prisma depois de mudar o `prisma/schema.prisma` |
+| `pnpm db:migrate` | Cria e aplica uma migration no banco de desenvolvimento |
+| `pnpm db:deploy` | Aplica as migrations pendentes (homologação e produção) |
+| `pnpm db:reset` | Apaga o banco de desenvolvimento e aplica todas as migrations de novo |
+| `pnpm db:studio` | Abre o Prisma Studio para ver os dados |
+
+- **Antes de cada commit**, o Husky roda o ESLint e o Prettier nos arquivos alterados (lint-staged), e o commitlint confere a mensagem: Conventional Commits, com os tipos deste arquivo e sem coautoria nem assinatura do Claude.
+- **Variáveis de ambiente:** todas estão no `.env.example`, com o que cada uma faz. Uma variável nova entra no `src/config/env.ts` e no `.env.example`, no mesmo commit.
+- **Banco de teste:** o `postgres-teste` do compose guarda os dados só na memória e começa vazio a cada subida. Os testes nunca leem o `.env`; para usar outro banco de teste, defina `TEST_DATABASE_URL`.
 
 ## Onde estão as coisas
 
