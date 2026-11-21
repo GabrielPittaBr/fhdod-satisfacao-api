@@ -11,6 +11,8 @@ export const STATUS_DO_CODIGO = {
 
 export type CodigoDeErro = keyof typeof STATUS_DO_CODIGO
 
+export const CODIGOS_DE_ERRO = Object.keys(STATUS_DO_CODIGO) as CodigoDeErro[]
+
 /** Problema num campo: `campo` é o caminho no corpo (`nome`, `contato.telefone`). */
 export interface DetalheErro {
   campo: string
@@ -56,5 +58,10 @@ export class AppError extends Error {
 
   static limiteAtingido(mensagem = 'Muitas tentativas. Espere um pouco e tente de novo.') {
     return new AppError('LIMITE_ATINGIDO', mensagem)
+  }
+
+  /** Erro inesperado: a mensagem é sempre esta, e o detalhe vai só para o log. */
+  static interno() {
+    return new AppError('ERRO_INTERNO', 'Erro inesperado. Tente de novo em instantes.')
   }
 }

@@ -1,0 +1,81 @@
+# Verificações de todo pull request e de cada push na develop e na main: lint, tipos, testes contra um
+# PostgreSQL 18, contrato (openapi.json) e build, os mesmos passos da definição de pronto do AGENTS.md.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [develop, main]
+
+permissions:
+  contents: read
+
+# Um push novo no mesmo PR cancela a verificação anterior.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verificar:
+    name: Lint, tipos, testes, contrato e build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    # O banco dos testes de integração: a mesma imagem do postgres-teste do docker-compose.yml, em UTC e UTF-8.
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_USER: app
+          POSTGRES_PASSWORD: app
+          POSTGRES_DB: satisfacao_teste
+          POSTGRES_INITDB_ARGS: --encoding=UTF8
+          TZ: UTC
+          PGTZ: UTC
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U app -d satisfacao_teste"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      TEST_DATABASE_URL: postgresql://app:app@localhost:5432/satisfacao_teste
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # A versão do pnpm vem do packageManager, no package.json.
+      - uses: pnpm/action-setup@v6
+
+      # A versão do Node vem do .nvmrc; o cache guarda o store do pnpm entre as execuções.
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Instalação
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Tipos
+        run: pnpm typecheck
+
+      - name: Testes
+        run: pnpm test
+
+      # Gera o contrato de novo e falha se o openapi.json commitado for diferente do que o código gera.
+      - name: Contrato
+        run: |
+          pnpm openapi:exportar
+          if [ -n "$(git status --porcelain -- openapi.json)" ]; then
+            echo "::error file=openapi.json::O openapi.json não bate com o código. Rode pnpm openapi:exportar e commite o arquivo."
+            git diff -- openapi.json
+            exit 1
+          fi
+
+      - name: Build
+        run: pnpm build

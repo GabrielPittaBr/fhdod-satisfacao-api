@@ -1,0 +1,211 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "API de Satisfação Hospitalar da FHDOD",
+    "version": "0.1.0",
+    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log."
+  },
+  "components": {
+    "schemas": {
+      "CodigoDeErro": {
+        "type": "string",
+        "enum": [
+          "VALIDACAO",
+          "NAO_AUTENTICADO",
+          "SEM_PERMISSAO",
+          "NAO_ENCONTRADO",
+          "CONFLITO",
+          "LIMITE_ATINGIDO",
+          "ERRO_INTERNO"
+        ],
+        "description": "Código do erro. Cada um tem o seu status HTTP; código novo só entra combinado com o front."
+      },
+      "DetalheErro": {
+        "type": "object",
+        "properties": {
+          "campo": {
+            "type": "string",
+            "description": "Caminho do campo no que foi enviado, como `nome` ou `contato.telefone`."
+          },
+          "mensagem": {
+            "type": "string",
+            "description": "O que está errado no campo, em português, para mostrar na tela."
+          }
+        },
+        "required": [
+          "campo",
+          "mensagem"
+        ],
+        "description": "Problema num campo."
+      },
+      "Erro": {
+        "type": "object",
+        "properties": {
+          "erro": {
+            "type": "object",
+            "properties": {
+              "codigo": {
+                "$ref": "#/components/schemas/CodigoDeErro"
+              },
+              "mensagem": {
+                "type": "string",
+                "description": "Frase curta em português, que o front mostra direto ao usuário."
+              },
+              "detalhes": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DetalheErro"
+                },
+                "description": "Um item por campo inválido, no erro `VALIDACAO`; vazio nos outros erros."
+              },
+              "requestId": {
+                "type": "string",
+                "description": "ID da requisição, o mesmo do cabeçalho `X-Request-Id`. Liga a mensagem à linha do log."
+              }
+            },
+            "required": [
+              "codigo",
+              "mensagem",
+              "detalhes",
+              "requestId"
+            ]
+          }
+        },
+        "required": [
+          "erro"
+        ],
+        "description": "Corpo de toda resposta de erro da API."
+      },
+      "Meta": {
+        "type": "object",
+        "properties": {
+          "pagina": {
+            "type": "integer",
+            "description": "Página devolvida, a partir de 1."
+          },
+          "porPagina": {
+            "type": "integer",
+            "description": "Itens por página."
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total de itens, somando todas as páginas."
+          }
+        },
+        "required": [
+          "pagina",
+          "porPagina",
+          "total"
+        ],
+        "description": "Paginação de uma lista."
+      },
+      "Saude": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "indisponivel"
+            ],
+            "description": "Estado geral da API."
+          },
+          "banco": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "indisponivel"
+            ],
+            "description": "Estado da conexão com o PostgreSQL."
+          }
+        },
+        "required": [
+          "status",
+          "banco"
+        ],
+        "description": "Estado da API e das dependências dela."
+      }
+    },
+    "parameters": {}
+  },
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Saúde"
+        ],
+        "summary": "Estado da API e do banco",
+        "description": "Chamada pelo Docker e pelo monitoramento. Fica em `/api/health`, fora do `/api/v1`, porque o endereço não muda com a versão da API. Cada chamada consulta o banco, sem cache.",
+        "responses": {
+          "200": {
+            "description": "A API e o banco estão no ar.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "status": "ok",
+                    "banco": "ok"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Saude"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "O banco não respondeu. O corpo é o mesmo do 200 e diz o que caiu.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "status": "indisponivel",
+                    "banco": "indisponivel"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Saude"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "webhooks": {}
+}
