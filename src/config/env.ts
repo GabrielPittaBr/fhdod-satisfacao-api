@@ -15,7 +15,7 @@ function ehOrigem(valor: string) {
   }
 }
 
-const schema = z.object({
+const variaveis = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']),
   PORT: z.coerce.number().int().min(1).max(65_535).default(3333),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
@@ -29,13 +29,21 @@ const schema = z.object({
     )
     .pipe(z.array(z.string().refine(ehOrigem)).min(1)),
   LOG_LEVEL: z.enum(NIVEIS_DE_LOG).default('info'),
+  DOCS_ENABLED: z.stringbool().optional(),
 })
+
+// Sem DOCS_ENABLED, o Swagger fica ligado fora de produção. A homologação roda em production e o liga com
+// DOCS_ENABLED=true.
+const schema = variaveis.transform((env) => ({
+  ...env,
+  DOCS_ENABLED: env.DOCS_ENABLED ?? env.NODE_ENV !== 'production',
+}))
 
 export type Env = z.output<typeof schema>
 
-type Variavel = keyof typeof schema.shape
+type Variavel = keyof typeof variaveis.shape
 
-const VARIAVEIS = Object.keys(schema.shape) as Variavel[]
+const VARIAVEIS = Object.keys(variaveis.shape) as Variavel[]
 
 /** O que escrever em cada variável. A mensagem de erro nunca mostra o valor, que pode ser segredo. */
 const COMO_PREENCHER: Record<Variavel, string> = {
@@ -44,6 +52,7 @@ const COMO_PREENCHER: Record<Variavel, string> = {
   DATABASE_URL: 'use uma URL do PostgreSQL, como postgresql://usuario:senha@localhost:5432/banco',
   CORS_ORIGIN: 'use a origem do front, como http://localhost:5173; várias origens vão separadas por vírgula',
   LOG_LEVEL: `use ${NIVEIS_DE_LOG.join(', ')}`,
+  DOCS_ENABLED: 'use true ou false',
 }
 
 export class ErroDeAmbiente extends Error {
