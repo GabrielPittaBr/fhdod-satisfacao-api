@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { criarAuthRoutes } from './modules/auth/auth.routes'
+import categoriasRoutes from './modules/categorias/categorias.routes'
 import setoresRoutes from './modules/setores/setores.routes'
 
 /**
@@ -11,5 +12,6 @@ export function criarRotas(): Router {
   const routes = Router()
   routes.use(criarAuthRoutes())
   routes.use(setoresRoutes)
+  routes.use(categoriasRoutes)
   return routes
 }
