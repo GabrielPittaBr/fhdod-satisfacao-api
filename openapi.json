@@ -239,6 +239,39 @@
           "todosSetores"
         ],
         "description": "Quem está logado, o que o perfil permite e quais setores enxerga."
+      },
+      "Setor": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string",
+            "description": "Forma os links `/s/<slug>` e `/totem/<slug>` e o QR Code."
+          },
+          "descricao": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ativo": {
+            "type": "boolean",
+            "description": "Setor inativo sai da pesquisa pública, mas o histórico dele continua nos indicadores."
+          }
+        },
+        "required": [
+          "id",
+          "nome",
+          "slug",
+          "descricao",
+          "ativo"
+        ],
+        "description": "Unidade do hospital com pesquisa própria."
       }
     },
     "parameters": {}
@@ -789,6 +822,648 @@
                   "erro": {
                     "codigo": "NAO_AUTENTICADO",
                     "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setores": {
+      "get": {
+        "tags": [
+          "Setores"
+        ],
+        "summary": "Setores que a pessoa enxerga",
+        "description": "Ativos e inativos, em ordem alfabética e sem paginação. Super Admin e Ouvidoria recebem todos; Gestor e Visualizador, só os seus. Qualquer perfil pode listar; só o Super Admin cria e edita.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Os setores, em ordem alfabética.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 5,
+                      "nome": "Ambulatório",
+                      "slug": "ambulatorio",
+                      "descricao": "Consultas agendadas",
+                      "ativo": true
+                    },
+                    {
+                      "id": 6,
+                      "nome": "Maternidade",
+                      "slug": "maternidade",
+                      "descricao": "Em reforma: pesquisa pausada",
+                      "ativo": false
+                    },
+                    {
+                      "id": 1,
+                      "nome": "Pronto Atendimento",
+                      "slug": "pronto-atendimento",
+                      "descricao": "Urgência e emergência, 24 horas",
+                      "ativo": true
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Setor"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: com a senha provisória, até a troca.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Troque a senha provisória para continuar.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Setores"
+        ],
+        "summary": "Cria um setor",
+        "description": "O setor nasce ativo, e a pesquisa dele já fica no ar em `/s/<slug>` e `/totem/<slug>`.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "description": "De 2 a 100 caracteres; os espaços das pontas saem.",
+                    "example": "Pronto Atendimento"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                    "description": "Endereço do setor, que forma os links `/s/<slug>` e `/totem/<slug>` e o QR Code: só letras minúsculas, números e hífen. Não se repete entre setores. Mudá-lo invalida os QR Codes já impressos.",
+                    "example": "pronto-atendimento"
+                  },
+                  "descricao": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 120,
+                    "description": "Opcional, até 120 caracteres. Vazia, só com espaços ou `null`, é gravada como `null`.",
+                    "example": "Urgência e emergência, 24 horas"
+                  }
+                },
+                "required": [
+                  "nome",
+                  "slug"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Setor criado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 1,
+                    "nome": "Pronto Atendimento",
+                    "slug": "pronto-atendimento",
+                    "descricao": "Urgência e emergência, 24 horas",
+                    "ativo": true
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Setor"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 2 caracteres (em `nome`) ou slug fora do formato (em `slug`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "slug",
+                        "mensagem": "Use só letras minúsculas, números e hífen, sem espaços"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `setores:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: o slug já é de outro setor.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Já existe um setor com este endereço. Escolha outro.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setores/{id}": {
+      "patch": {
+        "tags": [
+          "Setores"
+        ],
+        "summary": "Edita nome, slug ou descrição",
+        "description": "Só os campos enviados mudam. Mudar o slug muda os links da pesquisa e do totem, e os QR Codes já impressos deixam de abrir a pesquisa.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "description": "De 2 a 100 caracteres; os espaços das pontas saem.",
+                    "example": "Pronto Atendimento"
+                  },
+                  "slug": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+                    "description": "Endereço do setor, que forma os links `/s/<slug>` e `/totem/<slug>` e o QR Code: só letras minúsculas, números e hífen. Não se repete entre setores. Mudá-lo invalida os QR Codes já impressos.",
+                    "example": "pronto-atendimento"
+                  },
+                  "descricao": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 120,
+                    "description": "Opcional, até 120 caracteres. Vazia, só com espaços ou `null`, é gravada como `null`.",
+                    "example": "Urgência e emergência, 24 horas"
+                  }
+                },
+                "description": "Só os campos enviados mudam; os outros ficam como estão."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Setor editado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 1,
+                    "nome": "Pronto Atendimento",
+                    "slug": "pronto-atendimento",
+                    "descricao": "Urgência e emergência, 24 horas",
+                    "ativo": true
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Setor"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 2 caracteres (em `nome`), slug fora do formato (em `slug`) ou nenhum campo para mudar.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "nome",
+                        "mensagem": "Informe o nome do setor"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `setores:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe setor com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Setor não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: o slug já é de outro setor.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Já existe um setor com este endereço. Escolha outro.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setores/{id}/status": {
+      "patch": {
+        "tags": [
+          "Setores"
+        ],
+        "summary": "Ativa ou desativa um setor",
+        "description": "Nada é apagado. O setor inativo sai da pesquisa pública, mas as respostas dele continuam nos indicadores, e ele continua na lista de setores do painel.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ativo": {
+                    "type": "boolean",
+                    "description": "`true` ativa o setor; `false` o desativa."
+                  }
+                },
+                "required": [
+                  "ativo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Situação do setor atualizada."
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "ativo",
+                        "mensagem": "Obrigatório"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `setores:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe setor com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Setor não encontrado.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }
