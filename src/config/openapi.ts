@@ -4,6 +4,7 @@ import { documentarAuth } from '../modules/auth/auth.docs'
 import { documentarCategorias } from '../modules/categorias/categorias.docs'
 import { documentarHealth } from '../modules/health/health.docs'
 import { documentarSetores } from '../modules/setores/setores.docs'
+import { documentarTurnos } from '../modules/turnos/turnos.docs'
 import { codigoDeErroSchema, detalheErroSchema, erroSchema } from '../shared/errors/erro.schemas'
 import { ESQUEMA_DO_TOKEN_DE_ACESSO } from '../shared/http/documentacao'
 import { metaSchema } from '../shared/http/pagination'
@@ -21,6 +22,7 @@ const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [
   documentarAuth,
   documentarSetores,
   documentarCategorias,
+  documentarTurnos,
 ]
 
 /**
