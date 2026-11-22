@@ -3,9 +3,23 @@
   "info": {
     "title": "API de Satisfação Hospitalar da FHDOD",
     "version": "0.1.0",
-    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log."
+    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log.\n- Rotas do painel: token de acesso em `Authorization: Bearer <token>`. Sem ele, vencido ou com o usuário inativo, 401 `NAO_AUTENTICADO`; sem a permissão ou fora dos setores da pessoa, 403 `SEM_PERMISSAO`. Com a senha provisória, as rotas do painel respondem 403 até a troca em `/auth/senha`; `/auth/me` funciona."
   },
   "components": {
+    "securitySchemes": {
+      "tokenAcesso": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token de acesso de 15 minutos, devolvido por `/auth/login` e `/auth/refresh`, no cabeçalho `Authorization: Bearer <token>`."
+      },
+      "cookieDeRefresh": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "refresh_token",
+        "description": "Refresh token de 7 dias, gravado pelo login num cookie HttpOnly, Secure e SameSite=Strict, que o navegador envia só às rotas de `/api/v1/auth`. Cada uso troca o token por um novo."
+      }
+    },
     "schemas": {
       "CodigoDeErro": {
         "type": "string",
@@ -99,6 +113,38 @@
         ],
         "description": "Paginação de uma lista."
       },
+      "Perfil": {
+        "type": "string",
+        "enum": [
+          "SUPER_ADMIN",
+          "GESTOR",
+          "OUVIDORIA",
+          "VISUALIZADOR"
+        ],
+        "description": "Perfil de acesso ao painel."
+      },
+      "Permissao": {
+        "type": "string",
+        "enum": [
+          "setores:gerenciar",
+          "usuarios:gerenciar",
+          "categorias:gerenciar",
+          "turnos:gerenciar",
+          "tvwall:gerenciar",
+          "configuracoes:gerenciar",
+          "auditoria:ver",
+          "perguntas:gerenciar",
+          "dashboard:ver",
+          "respostas:ver",
+          "comentarios:ver",
+          "contatos:ver",
+          "contatos:gerenciar",
+          "exportacao:resumo",
+          "exportacao:detalhada",
+          "escalas:gerenciar"
+        ],
+        "description": "O que a pessoa pode fazer no painel. O mapa de cada perfil existe só na API; o front usa a lista do `/auth/me` para esconder menus."
+      },
       "Saude": {
         "type": "object",
         "properties": {
@@ -124,6 +170,75 @@
           "banco"
         ],
         "description": "Estado da API e das dependências dela."
+      },
+      "Sessao": {
+        "type": "object",
+        "properties": {
+          "usuario": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "nome": {
+                "type": "string"
+              },
+              "email": {
+                "type": "string"
+              },
+              "perfil": {
+                "$ref": "#/components/schemas/Perfil"
+              },
+              "trocarSenha": {
+                "type": "boolean",
+                "description": "Ainda com a senha provisória: o painel só abre depois da troca, em `PATCH /auth/senha`."
+              }
+            },
+            "required": [
+              "id",
+              "nome",
+              "email",
+              "perfil",
+              "trocarSenha"
+            ]
+          },
+          "permissoes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Permissao"
+            }
+          },
+          "setores": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "nome": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "nome"
+              ]
+            },
+            "description": "Setores que a pessoa enxerga, em ordem alfabética. Vazio quando enxerga todos."
+          },
+          "todosSetores": {
+            "type": "boolean",
+            "description": "Enxerga todos os setores (Super Admin e Ouvidoria)."
+          }
+        },
+        "required": [
+          "usuario",
+          "permissoes",
+          "setores",
+          "todosSetores"
+        ],
+        "description": "Quem está logado, o que o perfil permite e quais setores enxerga."
       }
     },
     "parameters": {}
@@ -199,6 +314,505 @@
                   "required": [
                     "data"
                   ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Entra com e-mail e senha",
+        "description": "Devolve o token de acesso no corpo e grava o refresh no cookie. Cada login com sucesso vai para a auditoria. Depois de 5 tentativas erradas em 15 minutos para o mesmo IP e e-mail, a próxima recebe 429, mesmo com a senha certa, até a janela acabar; o `Retry-After` diz quantos segundos faltam.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "Vale com qualquer combinação de maiúsculas.",
+                    "example": "nome@hospital.com.br"
+                  },
+                  "senha": {
+                    "type": "string",
+                    "minLength": 1
+                  }
+                },
+                "required": [
+                  "email",
+                  "senha"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login feito.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "O refresh token novo, no cookie `refresh_token`. O banco guarda só o hash dele.",
+                "schema": {
+                  "type": "string",
+                  "example": "refresh_token=<token>; Max-Age=604800; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "tokenAcesso": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.assinatura"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "tokenAcesso": {
+                          "type": "string",
+                          "description": "JWT de 15 minutos. O front o guarda só em memória e o envia em `Authorization: Bearer <token>`."
+                        }
+                      },
+                      "required": [
+                        "tokenAcesso"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "email",
+                        "mensagem": "Digite um e-mail válido, como nome@hospital.com.br"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: e-mail ou senha errados, ou usuário inativo, sempre com a mesma mensagem.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "E-mail ou senha incorretos.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`LIMITE_ATINGIDO`: limite de requisições atingido.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "LIMITE_ATINGIDO",
+                    "mensagem": "Muitas tentativas. Espere 15 minutos e tente de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/refresh": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Renova a sessão",
+        "description": "Troca o refresh do cookie por um novo (o antigo é revogado) e devolve outro token de acesso. O front chama esta rota ao recarregar a página e ao receber um 401, uma única vez.",
+        "security": [
+          {
+            "cookieDeRefresh": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sessão renovada.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "O refresh token novo, no cookie `refresh_token`. O banco guarda só o hash dele.",
+                "schema": {
+                  "type": "string",
+                  "example": "refresh_token=<token>; Max-Age=604800; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "tokenAcesso": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxIn0.assinatura"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "tokenAcesso": {
+                          "type": "string",
+                          "description": "JWT de 15 minutos. O front o guarda só em memória e o envia em `Authorization: Bearer <token>`."
+                        }
+                      },
+                      "required": [
+                        "tokenAcesso"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem o cookie, ou com o refresh vencido, revogado (já usado) ou de usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/logout": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Sai e encerra todas as sessões",
+        "description": "Revoga todos os refresh tokens da pessoa e apaga o cookie. A pessoa é a do token de acesso ou, se ele já venceu, a do cookie de refresh. Responde 204 mesmo sem sessão válida.",
+        "security": [
+          {
+            "tokenAcesso": []
+          },
+          {
+            "cookieDeRefresh": []
+          },
+          {}
+        ],
+        "responses": {
+          "204": {
+            "description": "Sessões encerradas e cookie apagado."
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Quem está logado",
+        "description": "Usuário, permissões do perfil e setores que a pessoa enxerga, lidos do banco a cada chamada. Funciona também com a senha provisória, para o front saber que precisa pedir a troca (`trocarSenha`).",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A sessão de quem está logado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "usuario": {
+                      "id": 2,
+                      "nome": "Ana Souza",
+                      "email": "ana.souza@hospital.com.br",
+                      "perfil": "GESTOR",
+                      "trocarSenha": false
+                    },
+                    "permissoes": [
+                      "perguntas:gerenciar",
+                      "dashboard:ver",
+                      "respostas:ver",
+                      "comentarios:ver",
+                      "exportacao:resumo",
+                      "exportacao:detalhada",
+                      "escalas:gerenciar"
+                    ],
+                    "setores": [
+                      {
+                        "id": 3,
+                        "nome": "Pronto Atendimento"
+                      }
+                    ],
+                    "todosSetores": false
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Sessao"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/auth/senha": {
+      "patch": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Troca a própria senha",
+        "description": "Obrigatória no primeiro acesso, com a senha provisória. Encerra as outras sessões e grava um refresh novo no cookie, para quem trocou continuar logado. Senha atual errada volta em `senhaAtual`, e senha nova fora da regra, em `novaSenha`.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "senhaAtual": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "A senha de agora; no primeiro acesso, a provisória."
+                  },
+                  "novaSenha": {
+                    "type": "string",
+                    "minLength": 10,
+                    "description": "Pelo menos 10 caracteres, com letras e números, e diferente da atual."
+                  }
+                },
+                "required": [
+                  "senhaAtual",
+                  "novaSenha"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Senha trocada.",
+            "headers": {
+              "Set-Cookie": {
+                "description": "O refresh token novo, no cookie `refresh_token`. O banco guarda só o hash dele.",
+                "schema": {
+                  "type": "string",
+                  "example": "refresh_token=<token>; Max-Age=604800; Path=/api/v1/auth; HttpOnly; Secure; SameSite=Strict"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: senha atual errada (em `senhaAtual`) ou senha nova fora da regra ou igual à atual (em `novaSenha`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "senhaAtual",
+                        "mensagem": "A senha atual não confere."
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
                 }
               }
             }

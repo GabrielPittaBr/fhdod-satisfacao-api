@@ -90,8 +90,26 @@ describe('contrato da API', () => {
 
   it('registra com nome os schemas que viram tipos no front', () => {
     expect(Object.keys(documento.components?.schemas ?? {})).toEqual(
-      expect.arrayContaining(['Erro', 'DetalheErro', 'CodigoDeErro', 'Meta', 'Saude']),
+      expect.arrayContaining([
+        'Erro',
+        'DetalheErro',
+        'CodigoDeErro',
+        'Meta',
+        'Saude',
+        'Sessao',
+        'Perfil',
+        'Permissao',
+      ]),
     )
+  })
+
+  it('descreve como as rotas do painel se autenticam: o token de acesso e o cookie de refresh', () => {
+    expect(documento.components?.securitySchemes).toMatchObject({
+      tokenAcesso: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      cookieDeRefresh: { type: 'apiKey', in: 'cookie', name: 'refresh_token' },
+    })
+    expect(documento.paths?.['/api/v1/auth/me']?.get?.security).toEqual([{ tokenAcesso: [] }])
+    expect(documento.paths?.['/api/v1/auth/refresh']?.post?.security).toEqual([{ cookieDeRefresh: [] }])
   })
 
   it('descreve o erro padrão com os códigos que a API usa', () => {
