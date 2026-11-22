@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { criarAuthRoutes } from './modules/auth/auth.routes'
+import setoresRoutes from './modules/setores/setores.routes'
 
 /**
  * Rotas da API em /api/v1. Cada módulo registra aqui o seu roteador e a documentação dele no MODULOS do
@@ -9,5 +10,6 @@ import { criarAuthRoutes } from './modules/auth/auth.routes'
 export function criarRotas(): Router {
   const routes = Router()
   routes.use(criarAuthRoutes())
+  routes.use(setoresRoutes)
   return routes
 }
