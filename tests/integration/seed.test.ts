@@ -1,8 +1,14 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
-import { semearBase } from '../../prisma/seeds/base'
+import { ErroDoSeed, semearBase } from '../../prisma/seeds/base'
 import { prisma } from '../../src/database/prisma'
+import { senhaConfere } from '../../src/shared/security/password'
+import { criarUsuario } from '../factories/usuarios'
 import { limparBanco } from '../helpers/banco'
 import { rodarPrisma } from '../helpers/prisma-cli'
+
+/** O que viria de SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD. */
+const ADMIN = { email: 'Admin@Hospital.Test', senha: 'senha-do-admin-2026' }
+const COM_ADMIN = { superAdmin: ADMIN }
 
 // O que o plano manda o seed base criar, escrito aqui de novo para o teste não conferir o código com ele mesmo.
 const CATEGORIAS = [
@@ -39,7 +45,7 @@ beforeEach(async () => {
 })
 
 async function lerBanco() {
-  const [categorias, turnos, configuracoes] = await Promise.all([
+  const [categorias, turnos, configuracoes, usuarios] = await Promise.all([
     prisma.categoria.findMany({
       orderBy: { ordem: 'asc' },
       select: { nome: true, ordem: true, ativa: true },
@@ -49,19 +55,29 @@ async function lerBanco() {
       select: { nome: true, horaInicio: true, horaFim: true, ordem: true },
     }),
     prisma.configuracao.findMany({ select: { chave: true, valor: true } }),
+    prisma.usuario.findMany({
+      orderBy: { id: 'asc' },
+      select: { nome: true, email: true, perfil: true, ativo: true, trocarSenha: true, senhaHash: true },
+    }),
   ])
   return {
     categorias,
     turnos,
     configuracoes: Object.fromEntries(configuracoes.map(({ chave, valor }) => [chave, valor])),
+    usuarios,
   }
 }
 
 describe('seed base', () => {
   it('cria as 7 categorias, os 3 turnos provisórios e as 8 configurações do plano', async () => {
-    await expect(semearBase(prisma)).resolves.toEqual({ categorias: 7, turnos: 3, configuracoes: 8 })
+    await expect(semearBase(prisma, COM_ADMIN)).resolves.toEqual({
+      categorias: 7,
+      turnos: 3,
+      configuracoes: 8,
+      superAdmin: 1,
+    })
 
-    await expect(lerBanco()).resolves.toEqual({
+    await expect(lerBanco()).resolves.toMatchObject({
       categorias: CATEGORIAS.map((nome, indice) => ({ nome, ordem: indice + 1, ativa: true })),
       turnos: TURNOS,
       configuracoes: CONFIGURACOES,
@@ -69,21 +85,26 @@ describe('seed base', () => {
   })
 
   it('rodado de novo, não cria nem muda nada', async () => {
-    await semearBase(prisma)
+    await semearBase(prisma, COM_ADMIN)
     const antes = await lerBanco()
 
-    await expect(semearBase(prisma)).resolves.toEqual({ categorias: 0, turnos: 0, configuracoes: 0 })
+    await expect(semearBase(prisma, COM_ADMIN)).resolves.toEqual({
+      categorias: 0,
+      turnos: 0,
+      configuracoes: 0,
+      superAdmin: 0,
+    })
     await expect(lerBanco()).resolves.toEqual(antes)
   })
 
   it('não desfaz o que foi mudado depois da instalação', async () => {
-    await semearBase(prisma)
+    await semearBase(prisma, COM_ADMIN)
     await prisma.categoria.updateMany({ where: { nome: 'Médico' }, data: { nome: 'Equipe médica' } })
     await prisma.categoria.updateMany({ where: { nome: 'Estrutura' }, data: { ativa: false } })
     await prisma.turno.updateMany({ where: { nome: 'Noite' }, data: { horaFim: '06:00' } })
     await prisma.configuracao.update({ where: { chave: 'nps_limite_baixa' }, data: { valor: 5 } })
 
-    await semearBase(prisma)
+    await semearBase(prisma, COM_ADMIN)
 
     const { categorias, turnos, configuracoes } = await lerBanco()
     expect(categorias.map(({ nome }) => nome)).toEqual(
@@ -95,11 +116,16 @@ describe('seed base', () => {
   })
 
   it('completa só as configurações que faltam', async () => {
-    await semearBase(prisma)
+    await semearBase(prisma, COM_ADMIN)
     await prisma.configuracao.delete({ where: { chave: 'nps_texto' } })
     await prisma.configuracao.update({ where: { chave: 'totem_reinicio_segundos' }, data: { valor: 10 } })
 
-    await expect(semearBase(prisma)).resolves.toEqual({ categorias: 0, turnos: 0, configuracoes: 1 })
+    await expect(semearBase(prisma, COM_ADMIN)).resolves.toEqual({
+      categorias: 0,
+      turnos: 0,
+      configuracoes: 1,
+      superAdmin: 0,
+    })
 
     await expect(lerBanco()).resolves.toMatchObject({
       configuracoes: { ...CONFIGURACOES, totem_reinicio_segundos: 10 },
@@ -107,9 +133,96 @@ describe('seed base', () => {
   })
 
   it('roda pelo comando do projeto, o pnpm db:seed (prisma db seed)', { timeout: 60_000 }, async () => {
-    const saida = rodarPrisma(['db', 'seed'], process.env.DATABASE_URL ?? '')
+    const saida = rodarPrisma(['db', 'seed'], process.env.DATABASE_URL ?? '', {
+      SEED_ADMIN_EMAIL: ADMIN.email,
+      SEED_ADMIN_PASSWORD: ADMIN.senha,
+    })
 
-    expect(saida).toContain('Seed base concluído. Novos registros: 7 categorias, 3 turnos e 8 configurações.')
-    await expect(lerBanco()).resolves.toMatchObject({ configuracoes: CONFIGURACOES })
+    expect(saida).toContain(
+      'Seed base concluído. Novos registros: 7 categorias, 3 turnos, 8 configurações e 1 Super Admin.',
+    )
+    await expect(lerBanco()).resolves.toMatchObject({
+      configuracoes: CONFIGURACOES,
+      usuarios: [{ email: 'admin@hospital.test', perfil: 'SUPER_ADMIN' }],
+    })
+  })
+})
+
+describe('primeiro Super Admin do seed', () => {
+  it('nasce com o e-mail (em minúsculas) e a senha das variáveis, e a troca é pedida no primeiro acesso', async () => {
+    await semearBase(prisma, COM_ADMIN)
+
+    const { usuarios } = await lerBanco()
+    expect(usuarios).toEqual([
+      {
+        nome: 'Super Admin',
+        email: 'admin@hospital.test',
+        perfil: 'SUPER_ADMIN',
+        ativo: true,
+        trocarSenha: true,
+        senhaHash: expect.stringMatching(/^\$argon2id\$/),
+      },
+    ])
+    await expect(senhaConfere(usuarios[0]!.senhaHash, ADMIN.senha)).resolves.toBe(true)
+  })
+
+  it('não muda a conta depois de criada, nem cria outra com um e-mail novo', async () => {
+    await semearBase(prisma, COM_ADMIN)
+    await prisma.usuario.updateMany({ data: { nome: 'Maria Admin', trocarSenha: false } })
+    const antes = await lerBanco()
+
+    await semearBase(prisma, { superAdmin: { email: 'outro@hospital.test', senha: 'outra-senha-2026' } })
+
+    expect((await lerBanco()).usuarios).toEqual(antes.usuarios)
+  })
+
+  it('só entra com a tabela de usuários vazia, e aí as variáveis podem sair do servidor', async () => {
+    await criarUsuario({ perfil: 'GESTOR' })
+
+    await expect(semearBase(prisma)).resolves.toMatchObject({ categorias: 7, superAdmin: 0 })
+    expect((await lerBanco()).usuarios.map(({ perfil }) => perfil)).toEqual(['GESTOR'])
+  })
+
+  it('sem as variáveis, num banco sem usuários, para e não deixa nada pela metade', async () => {
+    for (const superAdmin of [
+      {},
+      { email: ADMIN.email },
+      { senha: ADMIN.senha },
+      { email: '  ', senha: ADMIN.senha },
+    ]) {
+      const erro = await semearBase(prisma, { superAdmin }).catch((motivo: unknown) => motivo)
+
+      expect(erro).toBeInstanceOf(ErroDoSeed)
+      expect((erro as Error).message).toContain('SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD')
+    }
+    await expect(lerBanco()).resolves.toMatchObject({
+      categorias: [],
+      turnos: [],
+      configuracoes: {},
+      usuarios: [],
+    })
+  })
+
+  it('recusa e-mail inválido e senha fora da regra, sem mostrar a senha', async () => {
+    await expect(semearBase(prisma, { superAdmin: { email: 'admin', senha: ADMIN.senha } })).rejects.toThrow(
+      'SEED_ADMIN_EMAIL não é um e-mail válido.',
+    )
+
+    const erro: unknown = await semearBase(prisma, {
+      superAdmin: { email: ADMIN.email, senha: 'curta1' },
+    }).catch((motivo: unknown) => motivo)
+    expect(erro).toBeInstanceOf(ErroDoSeed)
+    expect((erro as ErroDoSeed).message).toContain('SEED_ADMIN_PASSWORD fora da regra de senha')
+    expect((erro as ErroDoSeed).message).not.toContain('curta1')
+    await expect(prisma.usuario.count()).resolves.toBe(0)
+  })
+
+  it('pelo comando, sem as variáveis, explica o que falta e sai com erro', { timeout: 60_000 }, () => {
+    expect(() =>
+      rodarPrisma(['db', 'seed'], process.env.DATABASE_URL ?? '', {
+        SEED_ADMIN_EMAIL: '',
+        SEED_ADMIN_PASSWORD: '',
+      }),
+    ).toThrow(/precisa de SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD/)
   })
 })
