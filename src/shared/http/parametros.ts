@@ -1,0 +1,17 @@
+import { z } from 'zod'
+
+/** Maior valor de uma coluna `integer` do PostgreSQL. Um ID acima dele não existe e faria o Prisma falhar. */
+const MAIOR_ID = 2_147_483_647
+
+const MENSAGEM_ID_INVALIDO = 'O ID precisa ser um número inteiro positivo.'
+
+/** ID num parâmetro da rota, como o `:id` de `/setores/:id`: chega em texto e sai como número. */
+export const idSchema = z.coerce
+  .number({ error: MENSAGEM_ID_INVALIDO })
+  .int(MENSAGEM_ID_INVALIDO)
+  .positive(MENSAGEM_ID_INVALIDO)
+  .max(MAIOR_ID, MENSAGEM_ID_INVALIDO)
+  .meta({ example: 1 })
+
+/** Os parâmetros das rotas `/<recurso>/:id`. */
+export const idParams = z.object({ id: idSchema })
