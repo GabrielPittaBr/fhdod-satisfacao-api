@@ -1,7 +1,7 @@
 import type { OpenAPIRegistry, ResponseConfig, RouteConfig } from '@asteasolutions/zod-to-openapi'
 import type { ZodType } from 'zod'
 import type { EsquemasDaRota } from '../../middlewares/validate'
-import { AppError, STATUS_DO_CODIGO, type CodigoDeErro } from '../errors/app-error'
+import { AppError, STATUS_DO_CODIGO, type CodigoDeErro, type DetalheErro } from '../errors/app-error'
 import { erroSchema, type Erro } from '../errors/erro.schemas'
 
 // Ajudantes para os `<modulo>.docs.ts` registrarem as rotas no documento OpenAPI (Swagger e openapi.json).
@@ -34,12 +34,39 @@ const ERROS: Record<CodigoDeErro, { quando: string; exemplo: AppError }> = {
   },
 }
 
+/** Nome, no documento, do esquema de segurança do token de acesso (`Authorization: Bearer <token>`). */
+export const ESQUEMA_DO_TOKEN_DE_ACESSO = 'tokenAcesso'
+
+/** O `security` das rotas que exigem login. */
+export const EXIGE_LOGIN = [{ [ESQUEMA_DO_TOKEN_DE_ACESSO]: [] }]
+
+/** O que muda num erro numa rota: quando ele acontece e a mensagem e os detalhes do exemplo. */
+interface ErroNestaRota {
+  quando?: string
+  mensagem?: string
+  detalhes?: DetalheErro[]
+}
+
+/**
+ * Um erro da rota: só o código, com a descrição e o exemplo padrão, ou o código com o que muda nesta rota,
+ * como o "E-mail ou senha incorretos." do 401 do login.
+ */
+export type ErroDaRota = CodigoDeErro | ({ codigo: CodigoDeErro } & ErroNestaRota)
+
+function separarCodigo(erro: ErroDaRota): [CodigoDeErro, ErroNestaRota] {
+  return typeof erro === 'string' ? [erro, {}] : [erro.codigo, erro]
+}
+
 /** Resposta de erro no formato padrão (o componente `Erro`), com um exemplo do código. */
-export function respostaDeErro(codigo: CodigoDeErro): ResponseConfig {
-  const { quando, exemplo } = ERROS[codigo]
-  const corpo: Erro = {
-    erro: { codigo, mensagem: exemplo.message, detalhes: exemplo.detalhes, requestId: REQUEST_ID_DE_EXEMPLO },
-  }
+export function respostaDeErro(
+  codigo: CodigoDeErro,
+  {
+    quando = ERROS[codigo].quando,
+    mensagem = ERROS[codigo].exemplo.message,
+    detalhes = ERROS[codigo].exemplo.detalhes,
+  }: ErroNestaRota = {},
+): ResponseConfig {
+  const corpo: Erro = { erro: { codigo, mensagem, detalhes, requestId: REQUEST_ID_DE_EXEMPLO } }
   return {
     description: `\`${codigo}\`: ${quando}`,
     content: { 'application/json': { schema: erroSchema, example: corpo } },
@@ -60,7 +87,7 @@ export type RotaDocumentada = Omit<RouteConfig, 'request' | 'responses'> & {
   /** Respostas de sucesso e as que fogem do erro padrão, como o 503 do health. */
   respostas: RouteConfig['responses']
   /** Erros que a rota devolve além do 400 de validação e do 500, que entram sozinhos. */
-  erros?: CodigoDeErro[]
+  erros?: ErroDaRota[]
 }
 
 /**
@@ -74,9 +101,10 @@ export function documentarRota(
 ) {
   const { params, query, body } = requisicao
   const validaAlgo = Boolean(params || query || body)
+  const daRota = new Map(erros.map(separarCodigo))
   const codigos = new Set<CodigoDeErro>([
     ...(validaAlgo ? ['VALIDACAO' as const] : []),
-    ...erros,
+    ...daRota.keys(),
     'ERRO_INTERNO',
   ])
 
@@ -91,7 +119,9 @@ export function documentarRota(
     }),
     responses: {
       ...respostas,
-      ...Object.fromEntries([...codigos].map((codigo) => [STATUS_DO_CODIGO[codigo], respostaDeErro(codigo)])),
+      ...Object.fromEntries(
+        [...codigos].map((codigo) => [STATUS_DO_CODIGO[codigo], respostaDeErro(codigo, daRota.get(codigo))]),
+      ),
     },
   })
 }
