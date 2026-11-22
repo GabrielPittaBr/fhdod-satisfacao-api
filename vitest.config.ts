@@ -9,12 +9,13 @@ const TEST_DATABASE_URL =
 
 export default defineConfig({
   test: {
-    // Os testes nunca leem o .env: usam estas variáveis e o banco de teste.
+    // Os testes nunca leem o .env: usam estas variáveis e o banco de teste. O segredo do JWT é só dos testes.
     env: {
       NODE_ENV: 'test',
       DATABASE_URL: TEST_DATABASE_URL,
       CORS_ORIGIN: 'http://localhost:5173',
       LOG_LEVEL: 'silent',
+      JWT_ACCESS_SECRET: 'segredo-dos-testes-nao-usar-fora-deles-0123456789',
     },
     projects: [
       {

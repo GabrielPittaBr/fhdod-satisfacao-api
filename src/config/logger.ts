@@ -11,6 +11,7 @@ export const CHAVES_OCULTAS = [
   'senha',
   'senhaAtual',
   'novaSenha',
+  'tokenAcesso',
   'telefone',
 ] as const
 
