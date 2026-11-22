@@ -128,7 +128,7 @@ As 14 tabelas do MVP estão no `prisma/schema.prisma`, e as migrations, em `pris
 - **Nome repetido:** o Prisma devolve o erro de único com o código `P2002`, também no índice de `lower(nome)` das categorias. O service o traduz em 409 `CONFLITO`, com a mensagem para o usuário.
 - **Turnos:** os horários são texto `HH:mm` e saem assim do banco. O fim pode ser menor que o início, como no turno da noite.
 - **Configurações:** as chaves e os valores padrão ficam em `src/shared/constants/configuracoes.ts`, e o valor de cada uma, em JSONB, na tabela `configuracoes`.
-- **Seed base** (`pnpm db:seed`, com o código em `prisma/seeds/base.ts`): categorias, turnos provisórios e configurações. Só cria o que falta e nunca muda o que existe, então roda em produção e quantas vezes for preciso. Os dados de demonstração ficam num comando à parte (ticket 12).
+- **Seed base** (`pnpm db:seed`, com o código em `prisma/seeds/base.ts`): categorias, turnos provisórios, configurações e o primeiro Super Admin. Só cria o que falta e nunca muda o que existe, então roda em produção e quantas vezes for preciso. O Super Admin só entra com a tabela de usuários vazia, com o e-mail e a senha de `SEED_ADMIN_EMAIL` e `SEED_ADMIN_PASSWORD`, e nasce com a troca de senha obrigatória; sem as duas variáveis num banco sem usuários, o seed para e diz o que falta. Os dados de demonstração ficam num comando à parte (ticket 12).
 - **Cliente do Prisma:** depois de mudar o schema, rode `pnpm db:generate`. No Prisma 7, o `migrate dev` não gera mais o cliente.
 
 ### Organização por módulo
@@ -149,6 +149,19 @@ O código é organizado por assunto, não por tipo de arquivo. Cada módulo fica
 - O que é usado por vários módulos fica em `src/shared/`. Regras que existem num lugar só: a classificação de nota (`src/shared/rules/classificar-nota.ts`), o cálculo do NPS (`src/shared/rules/calcular-nps.ts`) e o mapa de permissões por perfil (`src/shared/constants/permissoes.ts`). A API devolve a classificação e as permissões prontas; o front só exibe.
 - Permissão e escopo de setor são sempre checados na API, mesmo que o front esconda o botão. Listagens aplicam o escopo dentro da própria consulta.
 - A estrutura completa de pastas e a ordem dos middlewares estão no plano, em "Estrutura de pastas" e "Backend: camadas, middlewares e padrões".
+
+### Login, permissões e escopo de setor
+
+O login (ticket 05) usa um token de acesso JWT de 15 minutos, enviado em `Authorization: Bearer`, e um refresh token rotativo no cookie `refresh_token` (HttpOnly, Secure, SameSite=Strict, só em `/api/v1/auth`). O token só leva o ID do usuário: o resto é lido do banco a cada requisição, e uma mudança feita pelo Super Admin vale na hora.
+
+- **Rota do painel:** `authenticate` → `authorize('permissao')` → `setorScope('setorId')` → `validate(schema)` → controller. Na documentação, `security: EXIGE_LOGIN` e os erros `NAO_AUTENTICADO` e `SEM_PERMISSAO`.
+- **`authenticate`** (`src/middlewares/authenticate.ts`): 401 sem token, com token vencido ou adulterado e com o usuário inativo; 403 para quem ainda está com a senha provisória. Só `/auth/me` e `/auth/senha` usam o `authenticateComSenhaProvisoria`, que deixa essa pessoa passar. O controller lê quem está logado com `usuarioLogado(req)`.
+- **`authorize`:** confere a permissão no mapa do perfil, que existe só em `src/shared/constants/permissoes.ts` (os perfis ficam em `perfis.ts`). Permissão nova entra no mapa, no teste dele e no `Permissao` do front.
+- **Escopo:** `usuarioLogado(req).setorIds` traz os setores que a pessoa enxerga, ou `null` quando enxerga todos (Super Admin e Ouvidoria). Listagens filtram com essa lista na própria consulta. `setorScope('setorId')` barra o parâmetro da rota; `setorScope('setorId', 'query')` barra o filtro opcional (sem ele, a rota passa e a consulta aplica o escopo). Registro buscado pelo próprio ID, como `PATCH /perguntas/:id`, tem o setor conferido no service, com `podeAcessarSetor(usuario, setorId)`.
+- **Sessões:** `authService.encerrarSessoes(usuarioId)` revoga todos os refresh tokens da pessoa: logout, troca de senha e, no ticket 09, desativação e senha redefinida.
+- **Regra de senha:** pelo menos 10 caracteres, com letras e números, em `src/shared/rules/senha.ts`. Senhas só em hash argon2id (`src/shared/security/password.ts`); tokens só em hash SHA-256 (`hashDoToken`).
+- **Auditoria:** `acao` diz o que aconteceu, em snake_case (`login`, `troca_de_senha`); `entidade` é a tabela (`usuarios`) e `entidadeId`, o ID em texto; `ip` vem de `ipDaRequisicao(req)`, que devolve `null` para o que não for IP. Nenhuma senha ou token vai em `dados`.
+- **Testes:** `tests/factories/` cria usuários (`criarUsuario`, com a senha `SENHA_DE_TESTE`) e setores (`criarSetor`); `tests/helpers/sessao.ts` tem `entrar`, `bearer`, `cookie`, `cookieDoRefresh` e `tokenDeAcesso` (inclusive vencido ou forjado). Cada `createApp()` tem o seu próprio contador de tentativas do login, e os testes não dividem tentativas entre si.
 
 ### Respostas e erros
 
@@ -205,13 +218,19 @@ A documentação sai dos mesmos schemas Zod que validam as rotas. O Swagger (`/a
      path: '/api/v1/setores/{id}',
      tags: ['Setores'],
      summary: 'Edita nome, slug ou descrição',
+     security: EXIGE_LOGIN, // a rota tem authenticate
      requisicao: editarSetor, // o mesmo objeto do validate(editarSetor)
      respostas: { 200: respostaJson('Setor editado.', envelope(setorSchema)) },
-     erros: ['NAO_AUTENTICADO', 'SEM_PERMISSAO', 'NAO_ENCONTRADO', 'CONFLITO'],
+     erros: [
+       'NAO_AUTENTICADO',
+       'SEM_PERMISSAO',
+       'NAO_ENCONTRADO',
+       { codigo: 'CONFLITO', mensagem: 'Já existe um setor com este endereço.' },
+     ],
    })
    ```
 
-   O `path` é o caminho completo, com os parâmetros no formato do OpenAPI (`{id}`). Listas paginadas usam `lista(schema)` no lugar do `envelope`. O 400 `VALIDACAO` (quando a rota valida alguma coisa) e o 500 `ERRO_INTERNO` entram sozinhos, e toda resposta de erro usa o componente `Erro`.
+   O `path` é o caminho completo, com os parâmetros no formato do OpenAPI (`{id}`). Listas paginadas usam `lista(schema)` no lugar do `envelope`. O 400 `VALIDACAO` (quando a rota valida alguma coisa) e o 500 `ERRO_INTERNO` entram sozinhos, e toda resposta de erro usa o componente `Erro`. Um erro pode ser só o código, com o exemplo padrão, ou um objeto com o que muda na rota: `quando` (a descrição), `mensagem` e `detalhes` do exemplo.
 4. A função entra na lista `MODULOS` de `src/config/openapi.ts`, na ordem em que o módulo aparece no documento.
 5. `pnpm openapi:exportar` grava o `openapi.json`, que vai no mesmo commit da mudança.
 
@@ -247,7 +266,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | `pnpm db:generate` | Gera de novo o cliente do Prisma depois de mudar o `prisma/schema.prisma` |
 | `pnpm db:migrate` | Cria e aplica uma migration no banco de desenvolvimento; `--create-only` só cria, para acrescentar SQL. Não gera o cliente: rode `pnpm db:generate` depois |
 | `pnpm db:deploy` | Aplica as migrations pendentes, sem criar nenhuma: banco recém-criado, homologação e produção |
-| `pnpm db:seed` | Seed base: categorias, turnos provisórios e configurações padrão. Só cria o que falta, então pode rodar de novo e em produção |
+| `pnpm db:seed` | Seed base: categorias, turnos provisórios, configurações padrão e, num banco sem usuários, o primeiro Super Admin (`SEED_ADMIN_EMAIL` e `SEED_ADMIN_PASSWORD`). Só cria o que falta, então pode rodar de novo e em produção |
 | `pnpm db:reset` | Apaga o banco de desenvolvimento, aplica todas as migrations de novo e roda o seed base |
 | `pnpm db:studio` | Abre o Prisma Studio em `http://localhost:5555` para ver e editar os dados |
 
@@ -264,6 +283,9 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | --- | --- |
 | Regras de negócio, arquitetura e decisões | [`docs/Plano de Desenvolvimento - FHDOD.md`](docs/Plano%20de%20Desenvolvimento%20-%20FHDOD.md) |
 | Modelo de dados, migrations e seed base | [`prisma/schema.prisma`](prisma/schema.prisma), [`prisma/migrations/`](prisma/migrations/) e [`prisma/seed.ts`](prisma/seed.ts), com o código do seed em [`prisma/seeds/`](prisma/seeds/) |
+| Login e sessão; middlewares de acesso | [`src/modules/auth/`](src/modules/auth/); [`src/middlewares/`](src/middlewares/) (`authenticate`, `authorize`, `setor-scope` e `rate-limit`) |
+| Perfis e mapa de permissões | [`src/shared/constants/perfis.ts`](src/shared/constants/perfis.ts) e [`permissoes.ts`](src/shared/constants/permissoes.ts) |
+| Factories e helpers dos testes | [`tests/factories/`](tests/factories/) e [`tests/helpers/`](tests/helpers/) |
 | Tickets | [`docs/tickets/`](docs/tickets/) e as issues do GitHub |
 | Registros das entregas | [`docs/registros/`](docs/registros/) |
 | Contrato da API (OpenAPI) | [`openapi.json`](openapi.json), montado em [`src/config/openapi.ts`](src/config/openapi.ts); com a API rodando, o Swagger em `/api/docs` |

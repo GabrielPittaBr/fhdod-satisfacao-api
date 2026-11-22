@@ -5,6 +5,7 @@ const validas = {
   NODE_ENV: 'production',
   DATABASE_URL: 'postgresql://app:senha-do-banco@postgres:5432/satisfacao',
   CORS_ORIGIN: 'https://pesquisa.exemplo.com.br',
+  JWT_ACCESS_SECRET: 'segredo-de-exemplo-com-mais-de-32-caracteres',
 }
 
 function mensagemDoErro(fonte: Record<string, string | undefined>) {
@@ -26,7 +27,17 @@ describe('lerEnv', () => {
       CORS_ORIGIN: ['https://pesquisa.exemplo.com.br'],
       LOG_LEVEL: 'info',
       DOCS_ENABLED: false,
+      JWT_ACCESS_SECRET: validas.JWT_ACCESS_SECRET,
+      ACCESS_TOKEN_TTL: 900,
+      REFRESH_TOKEN_TTL_DAYS: 7,
     })
+  })
+
+  it('converte a validade do token de acesso para segundos e a do refresh para número de dias', () => {
+    expect(lerEnv({ ...validas, ACCESS_TOKEN_TTL: '15m' }).ACCESS_TOKEN_TTL).toBe(900)
+    expect(lerEnv({ ...validas, ACCESS_TOKEN_TTL: '90s' }).ACCESS_TOKEN_TTL).toBe(90)
+    expect(lerEnv({ ...validas, ACCESS_TOKEN_TTL: '2h' }).ACCESS_TOKEN_TTL).toBe(7200)
+    expect(lerEnv({ ...validas, REFRESH_TOKEN_TTL_DAYS: '30' }).REFRESH_TOKEN_TTL_DAYS).toBe(30)
   })
 
   it('liga o Swagger fora de produção e deixa o DOCS_ENABLED decidir quando ele vem definido', () => {
@@ -57,6 +68,7 @@ describe('lerEnv', () => {
     expect(mensagem).toContain('A API não subiu')
     expect(mensagem).toContain('DATABASE_URL não foi definida')
     expect(mensagem).toContain('CORS_ORIGIN não foi definida')
+    expect(mensagem).toContain('JWT_ACCESS_SECRET não foi definida')
     expect(mensagem).not.toContain('NODE_ENV')
     expect(mensagem).toContain('.env.example')
   })
@@ -69,11 +81,25 @@ describe('lerEnv', () => {
       CORS_ORIGIN: 'https://pesquisa.exemplo.com.br/',
       LOG_LEVEL: 'tudo',
       DOCS_ENABLED: 'talvez',
+      JWT_ACCESS_SECRET: 'curto-demais-31-caracteres-xxxx',
+      ACCESS_TOKEN_TTL: '15 minutos',
+      REFRESH_TOKEN_TTL_DAYS: '0',
     })
 
-    for (const variavel of ['NODE_ENV', 'PORT', 'DATABASE_URL', 'CORS_ORIGIN', 'LOG_LEVEL', 'DOCS_ENABLED']) {
+    for (const variavel of [
+      'NODE_ENV',
+      'PORT',
+      'DATABASE_URL',
+      'CORS_ORIGIN',
+      'LOG_LEVEL',
+      'DOCS_ENABLED',
+      'JWT_ACCESS_SECRET',
+      'ACCESS_TOKEN_TTL',
+      'REFRESH_TOKEN_TTL_DAYS',
+    ]) {
       expect(mensagem).toContain(`${variavel} está inválida`)
     }
     expect(mensagem).not.toContain('senha-secreta')
+    expect(mensagem).not.toContain('curto-demais')
   })
 })

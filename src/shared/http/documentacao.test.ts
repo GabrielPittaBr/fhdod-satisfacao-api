@@ -75,6 +75,46 @@ describe('documentarRota', () => {
     }
   })
 
+  it('usa a descrição, a mensagem e os detalhes que a rota der para um erro', () => {
+    const documento = gerar((registry) => {
+      documentarRota(registry, {
+        method: 'post',
+        path: '/api/v1/entrar',
+        requisicao: { body: z.object({ email: z.email() }) },
+        respostas: { 204: { description: 'Entrou.' } },
+        erros: [
+          { codigo: 'VALIDACAO', detalhes: [{ campo: 'email', mensagem: 'Digite um e-mail válido' }] },
+          {
+            codigo: 'NAO_AUTENTICADO',
+            quando: 'e-mail ou senha errados.',
+            mensagem: 'E-mail ou senha incorretos.',
+          },
+          'LIMITE_ATINGIDO',
+        ],
+      })
+    })
+    const respostas = documento.paths?.['/api/v1/entrar']?.post?.responses ?? {}
+
+    expect(Object.keys(respostas)).toEqual(['204', '400', '401', '429', '500'])
+    expect(respostas['400']?.content?.['application/json']?.example).toMatchObject({
+      erro: { codigo: 'VALIDACAO', detalhes: [{ campo: 'email', mensagem: 'Digite um e-mail válido' }] },
+    })
+    expect(respostas['401']).toMatchObject({
+      description: '`NAO_AUTENTICADO`: e-mail ou senha errados.',
+      content: {
+        'application/json': {
+          schema: ERRO,
+          example: {
+            erro: { codigo: 'NAO_AUTENTICADO', mensagem: 'E-mail ou senha incorretos.', detalhes: [] },
+          },
+        },
+      },
+    })
+    expect(respostas['429']?.content?.['application/json']?.example).toMatchObject({
+      erro: { codigo: 'LIMITE_ATINGIDO', mensagem: 'Muitas tentativas. Espere um pouco e tente de novo.' },
+    })
+  })
+
   it('dá só o 500 a uma rota que não valida nada', () => {
     expect(listar?.parameters).toBeUndefined()
     expect(listar?.requestBody).toBeUndefined()

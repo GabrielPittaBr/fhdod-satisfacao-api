@@ -11,15 +11,25 @@ const CLI = path.join(
 
 /**
  * Roda um comando do Prisma num processo à parte, contra o banco de `url`, e devolve a saída. Se o comando
- * falhar, o erro traz o que ele escreveu. O DATABASE_URL passado aqui vale mais que o do .env, que o
- * prisma7.config.ts só lê para as variáveis que faltam.
+ * falhar, o erro traz o que ele escreveu. O DATABASE_URL e as `variaveis` passados aqui valem mais que os do
+ * .env, que o prisma7.config.ts só lê para as variáveis que faltam; texto vazio conta como não definida.
  */
-export function rodarPrisma(argumentos: string[], url: string): string {
+export function rodarPrisma(
+  argumentos: string[],
+  url: string,
+  variaveis: Record<string, string> = {},
+): string {
   try {
     return execFileSync(process.execPath, [CLI, ...argumentos], {
       encoding: 'utf8',
       stdio: 'pipe',
-      env: { ...process.env, DATABASE_URL: url, PRISMA_HIDE_UPDATE_MESSAGE: '1', CHECKPOINT_DISABLE: '1' },
+      env: {
+        ...process.env,
+        ...variaveis,
+        DATABASE_URL: url,
+        PRISMA_HIDE_UPDATE_MESSAGE: '1',
+        CHECKPOINT_DISABLE: '1',
+      },
     })
   } catch (erro) {
     const { stdout = '', stderr = '' } = erro as { stdout?: string; stderr?: string }

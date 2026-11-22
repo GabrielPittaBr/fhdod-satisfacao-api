@@ -12,10 +12,10 @@ import { notFound } from './middlewares/not-found'
 import { requestId } from './middlewares/request-id'
 import { criarDocsRoutes } from './modules/docs/docs.routes'
 import healthRoutes from './modules/health/health.routes'
-import routes from './routes'
+import { criarRotas } from './routes'
 
 interface OpcoesDoApp {
-  /** Rotas montadas em /api/v1. Os testes trocam pelas suas. */
+  /** Rotas montadas em /api/v1. Padrão: as da API, criadas para este app. Os testes trocam pelas suas. */
   rotas?: Router
   /** Logger das requisições. Os testes passam um que grava na memória. */
   logger?: Logger
@@ -25,7 +25,7 @@ interface OpcoesDoApp {
 
 /** Cria o Express com a cadeia de middlewares do plano ("Ciclo de uma requisição"). */
 export function createApp({
-  rotas = routes,
+  rotas = criarRotas(),
   logger = loggerPadrao,
   docs = env.DOCS_ENABLED,
 }: OpcoesDoApp = {}) {
