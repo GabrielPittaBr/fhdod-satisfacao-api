@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { criarAuthRoutes } from './modules/auth/auth.routes'
 import categoriasRoutes from './modules/categorias/categorias.routes'
 import setoresRoutes from './modules/setores/setores.routes'
+import turnosRoutes from './modules/turnos/turnos.routes'
 
 /**
  * Rotas da API em /api/v1. Cada módulo registra aqui o seu roteador e a documentação dele no MODULOS do
@@ -13,5 +14,6 @@ export function criarRotas(): Router {
   routes.use(criarAuthRoutes())
   routes.use(setoresRoutes)
   routes.use(categoriasRoutes)
+  routes.use(turnosRoutes)
   return routes
 }
