@@ -13,9 +13,11 @@ pnpm install            # dependências, cliente do Prisma e hooks do Git
 cp .env.example .env    # variáveis de desenvolvimento, já apontando para o banco do Docker
 docker compose up -d    # PostgreSQL 18 de desenvolvimento e de teste
 pnpm db:deploy          # cria as tabelas, aplicando as migrations
-pnpm db:seed            # categorias, turnos provisórios e configurações padrão
+pnpm db:seed            # categorias, turnos, configurações e o primeiro Super Admin
 pnpm dev                # API em http://localhost:3333, recarregando a cada alteração
 ```
+
+O primeiro Super Admin entra com o e-mail e a senha de `SEED_ADMIN_EMAIL` e `SEED_ADMIN_PASSWORD`, do `.env`; no primeiro acesso, a troca da senha é obrigatória. Se o seu `.env` é de antes do login, copie dele as variáveis novas do `.env.example`: sem `JWT_ACCESS_SECRET`, a API não sobe.
 
 Para ver os dados, `pnpm db:studio` abre o Prisma Studio em <http://localhost:5555>.
 
