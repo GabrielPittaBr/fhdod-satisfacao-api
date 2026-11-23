@@ -166,6 +166,20 @@ O login (ticket 05) usa um token de acesso JWT de 15 minutos, enviado em `Author
 - **Auditoria:** `acao` diz o que aconteceu, em snake_case (`login`, `troca_de_senha`); `entidade` é a tabela (`usuarios`) e `entidadeId`, o ID em texto; `ip` vem de `ipDaRequisicao(req)`, que devolve `null` para o que não for IP. Nenhuma senha ou token vai em `dados`. A linha entra na mesma transação da mudança, com o `linhaDeAuditoria(autor, { acao, entidade, entidadeId, dados })` de `src/database/auditoria.ts`. Nas perguntas, `dados` leva o `setorId` e o que mudou (na edição, o `antes` e o `depois`). Nos usuários, vão a criação, a mudança de perfil e a de setores (com o `antes` e o `depois`), a de situação e a senha redefinida, esta sem `dados`. Um pedido que não muda nada não grava linha.
 - **Testes:** `tests/factories/` cria usuários (`criarUsuario`, com a senha `SENHA_DE_TESTE`) setores (`criarSetor`, com nome, slug, descrição e status opcionais), categorias (`criarCategoria`), turnos (`criarTurno`, das 07:00 às 13:00 se o teste não pedir outro horário), perguntas (`criarPergunta`, uma escala de 1 a 5 ativa, ou três opções na múltipla escolha) e respostas (`criarResposta`, um envio pela web com um item por pergunta, que copia o texto, o tipo e a categoria dela); `tests/helpers/sessao.ts` tem `entrar`, `bearer`, `cookie`, `cookieDoRefresh` e `tokenDeAcesso` (inclusive vencido ou forjado). Cada `createApp()` tem o seu próprio contador de tentativas do login, e os testes não dividem tentativas entre si.
 
+### Pesquisa pública
+
+A pesquisa do paciente (ticket 10) fica em `src/modules/pesquisa/`, nas rotas `/publico`, sem login.
+
+- **Rota pública:** `rate-limit` → `validate(schema)` → controller. O envio (`POST /publico/setores/:slug/respostas`) aceita 30 requisições a cada 15 minutos por IP, aceitas ou não (`criarLimiteDeEnvios`, em `src/middlewares/rate-limit.ts`); os IPs do `RATE_LIMIT_ALLOWLIST`, como o do hospital, por onde saem os totens, ficam fora. A abertura da pesquisa não tem limite.
+- **Configurações:** o `pesquisaRepository.lerConfiguracoes()` lê a tabela `configuracoes`; uma chave que falta, ou com valor de outro tipo, vale o padrão de `CONFIGURACOES_PADRAO`.
+- **Classificação:** `classificarNota(nps, notas, configuracoes)`, em `src/shared/rules/classificar-nota.ts`: a pior entre a do NPS e a de cada nota de 1 a 5. É a única regra de nota baixa da API.
+- **Idempotência:** a `chaveIdempotencia` (UUID, única no banco) é conferida antes de qualquer validação do banco. A chave repetida, também em dois envios simultâneos, devolve a avaliação gravada (o mesmo `id` e a mesma `classificacao`) com um token de complemento novo, que substitui o anterior. A chave usada noutro setor, ou numa avaliação já complementada, dá 409.
+- **Token de complemento:** `gerarTokenOpaco()`, válido por 30 minutos; o banco guarda só o `hashDoToken` e a validade, e a resposta sai com `Cache-Control: no-store`. **Token usado = `tokenComplementoHash` nulo:** o complemento (ticket 11) apaga o hash ao usar o token, e o reenvio não cria outro para uma avaliação nessa situação.
+- **Itens:** cada um copia o texto, a categoria e o tipo da pergunta ativa do setor. O sim ou não grava `SIM` ou `NAO` em `valor_texto`; a múltipla escolha, a opção como veio; o texto livre, sem os espaços das pontas e até o `texto_limite_caracteres`. Os erros vão em `itens.N` (pergunta de fora ou repetida) e em `itens.N.valorNumero` ou `itens.N.valorTexto` (valor errado para o tipo).
+- **Campo isca:** `site`, que o front mantém invisível e vazio. Preenchido, dá 400 em `site`, e nada é gravado.
+- **IP do paciente:** nunca gravado. As rotas públicas não escrevem na auditoria.
+- **Testes:** o `vitest.config.ts` põe o `203.0.113.10` (um IP de documentação) no `RATE_LIMIT_ALLOWLIST`, no papel do IP do hospital. Os testes mandam o IP pelo `X-Forwarded-For`, como o Caddy, e criam um `createApp()` por teste, para o contador de envios começar do zero.
+
 ### Respostas e erros
 
 - Sucesso: `{ "data": ... }`. Listas paginadas: `{ "data": [...], "meta": { "pagina": 1, "porPagina": 20, "total": 134 } }`.
@@ -290,6 +304,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | Cadastros de setores, categorias e turnos (os módulos mais simples, bons modelos para os próximos) | [`src/modules/setores/`](src/modules/setores/), [`categorias/`](src/modules/categorias/) e [`turnos/`](src/modules/turnos/) |
 | Perguntas do setor: o modelo para escopo pela rota e pelo ID do registro e para a auditoria | [`src/modules/perguntas/`](src/modules/perguntas/) |
 | Usuários e seus setores: senha provisória, sessões derrubadas e auditoria sem senha | [`src/modules/usuarios/`](src/modules/usuarios/) |
+| Pesquisa pública: rotas sem login, limite de envios, idempotência e token de complemento | [`src/modules/pesquisa/`](src/modules/pesquisa/) e a regra [`classificar-nota.ts`](src/shared/rules/classificar-nota.ts) |
 | Perfis e mapa de permissões | [`src/shared/constants/perfis.ts`](src/shared/constants/perfis.ts) e [`permissoes.ts`](src/shared/constants/permissoes.ts) |
 | Factories e helpers dos testes | [`tests/factories/`](tests/factories/) e [`tests/helpers/`](tests/helpers/) |
 | Tickets | [`docs/tickets/`](docs/tickets/) e as issues do GitHub |
