@@ -149,6 +149,60 @@
         ],
         "description": "Perfil de acesso ao painel."
       },
+      "Pergunta": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "setorId": {
+            "type": "integer"
+          },
+          "categoriaId": {
+            "type": "integer"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoPergunta"
+          },
+          "opcoes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "As opções da múltipla escolha, na ordem em que aparecem; `null` nos outros tipos."
+          },
+          "ordem": {
+            "type": "integer",
+            "description": "Posição na pesquisa do setor: o paciente vê as ativas nesta ordem. A nova entra no fim."
+          },
+          "ativa": {
+            "type": "boolean",
+            "description": "Só as ativas aparecem na pesquisa. Desativar não apaga nada: as respostas continuam."
+          },
+          "temRespostas": {
+            "type": "boolean",
+            "description": "Já foi respondida ao menos uma vez: o tipo não pode mais mudar."
+          }
+        },
+        "required": [
+          "id",
+          "setorId",
+          "categoriaId",
+          "texto",
+          "tipo",
+          "opcoes",
+          "ordem",
+          "ativa",
+          "temRespostas"
+        ],
+        "description": "Pergunta da pesquisa de um setor."
+      },
       "Permissao": {
         "type": "string",
         "enum": [
@@ -298,6 +352,16 @@
           "ativo"
         ],
         "description": "Unidade do hospital com pesquisa própria."
+      },
+      "TipoPergunta": {
+        "type": "string",
+        "enum": [
+          "ESCALA_1_5",
+          "SIM_NAO",
+          "MULTIPLA_ESCOLHA",
+          "TEXTO"
+        ],
+        "description": "Escala de 1 a 5 (com os rostinhos), sim ou não, múltipla escolha ou texto livre. Uma pergunta que já tem respostas não muda de tipo."
       },
       "Turno": {
         "type": "object",
@@ -2442,6 +2506,922 @@
                   "erro": {
                     "codigo": "NAO_ENCONTRADO",
                     "mensagem": "Turno não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setores/{setorId}/perguntas": {
+      "get": {
+        "tags": [
+          "Perguntas"
+        ],
+        "summary": "Perguntas do setor, na ordem",
+        "description": "Ativas e inativas, na ordem da pesquisa e sem paginação. O Gestor só lê as dos seus setores; o Super Admin, as de qualquer um.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "setorId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "As perguntas do setor, na ordem.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 12,
+                      "setorId": 1,
+                      "categoriaId": 1,
+                      "texto": "Como foi o atendimento na recepção?",
+                      "tipo": "ESCALA_1_5",
+                      "opcoes": null,
+                      "ordem": 1,
+                      "ativa": true,
+                      "temRespostas": true
+                    },
+                    {
+                      "id": 13,
+                      "setorId": 1,
+                      "categoriaId": 4,
+                      "texto": "Você recebeu as orientações sobre o exame?",
+                      "tipo": "MULTIPLA_ESCOLHA",
+                      "opcoes": [
+                        "Sim, e entendi tudo",
+                        "Sim, mas fiquei com dúvidas",
+                        "Não"
+                      ],
+                      "ordem": 2,
+                      "ativa": true,
+                      "temRespostas": false
+                    },
+                    {
+                      "id": 14,
+                      "setorId": 1,
+                      "categoriaId": 7,
+                      "texto": "O tempo de espera foi informado?",
+                      "tipo": "SIM_NAO",
+                      "opcoes": null,
+                      "ordem": 3,
+                      "ativa": false,
+                      "temRespostas": true
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Pergunta"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "contato.telefone",
+                        "mensagem": "Telefone com DDD, só números"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `perguntas:gerenciar` (Super Admin e Gestor a têm), num setor que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe setor com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Setor não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Perguntas"
+        ],
+        "summary": "Cria uma pergunta no setor",
+        "description": "A pergunta nasce ativa e entra no fim da ordem do setor. A criação vai para a auditoria.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "setorId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 140,
+                    "description": "De 5 a 140 caracteres; os espaços das pontas saem.",
+                    "example": "Como foi o atendimento na recepção?"
+                  },
+                  "categoriaId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 2147483647,
+                    "description": "Uma categoria ativa. Na edição, vale também a categoria que a pergunta já tem, mesmo desativada.",
+                    "example": 1
+                  },
+                  "tipo": {
+                    "$ref": "#/components/schemas/TipoPergunta"
+                  },
+                  "opcoes": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Só na múltipla escolha, e nela obrigatórias: de 2 a 5 opções, cada uma com até 80 caracteres, sem repetir (nem com maiúsculas diferentes); os espaços das pontas saem. Nos outros tipos, `null`, a lista vazia ou nada.",
+                    "example": [
+                      "Sim, e entendi tudo",
+                      "Sim, mas fiquei com dúvidas",
+                      "Não"
+                    ]
+                  }
+                },
+                "required": [
+                  "texto",
+                  "categoriaId",
+                  "tipo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Pergunta criada.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 15,
+                    "setorId": 1,
+                    "categoriaId": 4,
+                    "texto": "Você recebeu as orientações sobre o exame?",
+                    "tipo": "MULTIPLA_ESCOLHA",
+                    "opcoes": [
+                      "Sim, e entendi tudo",
+                      "Sim, mas fiquei com dúvidas",
+                      "Não"
+                    ],
+                    "ordem": 4,
+                    "ativa": true,
+                    "temRespostas": false
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Pergunta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: texto fora de 5 a 140 caracteres (em `texto`), categoria inexistente ou desativada (em `categoriaId`), tipo desconhecido (em `tipo`) ou opções erradas para o tipo (em `opcoes`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "opcoes",
+                        "mensagem": "As opções não podem se repetir"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `perguntas:gerenciar` (Super Admin e Gestor a têm), num setor que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe setor com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Setor não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/setores/{setorId}/perguntas/ordem": {
+      "put": {
+        "tags": [
+          "Perguntas"
+        ],
+        "summary": "Salva a nova ordem das perguntas do setor",
+        "description": "Recebe os IDs de todas as perguntas do setor, ativas e inativas, na ordem nova. A mudança vai para a auditoria, com a ordem de antes e a de depois.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "setorId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "description": "Os IDs de todas as perguntas do setor, ativas e inativas, na nova ordem: a primeira da lista fica na posição 1.",
+                    "example": [
+                      13,
+                      12,
+                      14
+                    ]
+                  }
+                },
+                "required": [
+                  "ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Ordem salva."
+          },
+          "400": {
+            "description": "`VALIDACAO`: a lista não tem todas as perguntas do setor, uma vez cada, e só elas (em `ids`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "ids",
+                        "mensagem": "A lista precisa ter todas as perguntas do setor"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `perguntas:gerenciar` (Super Admin e Gestor a têm), num setor que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe setor com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Setor não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/perguntas/{id}": {
+      "patch": {
+        "tags": [
+          "Perguntas"
+        ],
+        "summary": "Edita o texto, a categoria, o tipo e as opções",
+        "description": "Recebe a pergunta inteira, como na criação; a ordem e a situação não mudam. As respostas antigas guardam o texto que o paciente leu. Uma pergunta que já tem respostas não muda de tipo. A edição vai para a auditoria, com o antes e o depois.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "texto": {
+                    "type": "string",
+                    "minLength": 5,
+                    "maxLength": 140,
+                    "description": "De 5 a 140 caracteres; os espaços das pontas saem.",
+                    "example": "Como foi o atendimento na recepção?"
+                  },
+                  "categoriaId": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 2147483647,
+                    "description": "Uma categoria ativa. Na edição, vale também a categoria que a pergunta já tem, mesmo desativada.",
+                    "example": 1
+                  },
+                  "tipo": {
+                    "$ref": "#/components/schemas/TipoPergunta"
+                  },
+                  "opcoes": {
+                    "type": [
+                      "array",
+                      "null"
+                    ],
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Só na múltipla escolha, e nela obrigatórias: de 2 a 5 opções, cada uma com até 80 caracteres, sem repetir (nem com maiúsculas diferentes); os espaços das pontas saem. Nos outros tipos, `null`, a lista vazia ou nada.",
+                    "example": [
+                      "Sim, e entendi tudo",
+                      "Sim, mas fiquei com dúvidas",
+                      "Não"
+                    ]
+                  }
+                },
+                "required": [
+                  "texto",
+                  "categoriaId",
+                  "tipo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Pergunta editada.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 12,
+                    "setorId": 1,
+                    "categoriaId": 1,
+                    "texto": "Como foi o atendimento na recepção?",
+                    "tipo": "ESCALA_1_5",
+                    "opcoes": null,
+                    "ordem": 1,
+                    "ativa": true,
+                    "temRespostas": true
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Pergunta"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: texto fora de 5 a 140 caracteres (em `texto`), categoria inexistente ou desativada (em `categoriaId`), tipo desconhecido (em `tipo`) ou opções erradas para o tipo (em `opcoes`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "opcoes",
+                        "mensagem": "As opções não podem se repetir"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `perguntas:gerenciar` (Super Admin e Gestor a têm), num setor que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe pergunta com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Pergunta não encontrada.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: a pergunta já tem respostas e o tipo mudou.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Esta pergunta já tem respostas, então o tipo não pode mudar. Crie outra pergunta e desative esta.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/perguntas/{id}/status": {
+      "patch": {
+        "tags": [
+          "Perguntas"
+        ],
+        "summary": "Ativa ou desativa uma pergunta",
+        "description": "Nada é apagado: a pergunta inativa sai da pesquisa, e as respostas dela continuam nos indicadores. A mudança vai para a auditoria.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ativa": {
+                    "type": "boolean",
+                    "description": "`true` ativa a pergunta, que volta à pesquisa; `false` a desativa."
+                  }
+                },
+                "required": [
+                  "ativa"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Situação da pergunta atualizada."
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "ativa",
+                        "mensagem": "Obrigatório"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `perguntas:gerenciar` (Super Admin e Gestor a têm), num setor que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe pergunta com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Pergunta não encontrada.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }
