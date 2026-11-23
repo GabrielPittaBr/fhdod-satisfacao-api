@@ -1,8 +1,10 @@
 import { OpenApiGeneratorV31, OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 import pacote from '../../package.json' with { type: 'json' }
 import { documentarAuth } from '../modules/auth/auth.docs'
+import { documentarCategorias } from '../modules/categorias/categorias.docs'
 import { documentarHealth } from '../modules/health/health.docs'
 import { documentarSetores } from '../modules/setores/setores.docs'
+import { documentarTurnos } from '../modules/turnos/turnos.docs'
 import { codigoDeErroSchema, detalheErroSchema, erroSchema } from '../shared/errors/erro.schemas'
 import { ESQUEMA_DO_TOKEN_DE_ACESSO } from '../shared/http/documentacao'
 import { metaSchema } from '../shared/http/pagination'
@@ -15,7 +17,13 @@ import { metaSchema } from '../shared/http/pagination'
  * A documentação de cada módulo, na ordem em que as rotas aparecem no documento. Módulo novo entra aqui
  * com a função do seu `<modulo>.docs.ts`; o teste de contrato acusa rota sem documentação.
  */
-const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [documentarHealth, documentarAuth, documentarSetores]
+const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [
+  documentarHealth,
+  documentarAuth,
+  documentarSetores,
+  documentarCategorias,
+  documentarTurnos,
+]
 
 /**
  * O erro padrão e o `meta` das listas entram no documento mesmo antes de uma rota usá-los. Vão como

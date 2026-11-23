@@ -1,4 +1,4 @@
-import { ehErroDoPrisma } from '../../database/erros'
+import { traduzirErroDoPrisma } from '../../database/erros'
 import { AppError } from '../../shared/errors/app-error'
 import type { UsuarioAutenticado } from '../../shared/security/acesso'
 import { setoresRepository } from './setores.repository'
@@ -17,9 +17,10 @@ function normalizarDescricao(descricao: string | null | undefined): string | nul
 
 /** O slug é a única coluna única dos setores: o `P2002` só pode ser ele. */
 function traduzirErroDeGravacao(erro: unknown): unknown {
-  if (ehErroDoPrisma(erro, 'valorRepetido')) return AppError.conflito(MENSAGEM_SLUG_REPETIDO)
-  if (ehErroDoPrisma(erro, 'naoEncontrado')) return AppError.naoEncontrado(MENSAGEM_SETOR_NAO_ENCONTRADO)
-  return erro
+  return traduzirErroDoPrisma(erro, {
+    valorRepetido: AppError.conflito(MENSAGEM_SLUG_REPETIDO),
+    naoEncontrado: AppError.naoEncontrado(MENSAGEM_SETOR_NAO_ENCONTRADO),
+  })
 }
 
 export const setoresService = {

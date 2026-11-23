@@ -21,6 +21,32 @@
       }
     },
     "schemas": {
+      "Categoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "ordem": {
+            "type": "integer",
+            "description": "Posição na lista. A categoria nova entra no fim."
+          },
+          "ativa": {
+            "type": "boolean",
+            "description": "Desativar não apaga nada: as perguntas e as respostas da categoria continuam."
+          }
+        },
+        "required": [
+          "id",
+          "nome",
+          "ordem",
+          "ativa"
+        ],
+        "description": "Etapa do atendimento comparável entre setores, como Recepção ou Triagem."
+      },
       "CodigoDeErro": {
         "type": "string",
         "enum": [
@@ -272,6 +298,39 @@
           "ativo"
         ],
         "description": "Unidade do hospital com pesquisa própria."
+      },
+      "Turno": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "horaInicio": {
+            "type": "string",
+            "description": "Início, em HH:mm.",
+            "example": "19:00"
+          },
+          "horaFim": {
+            "type": "string",
+            "description": "Fim, em HH:mm. Menor que o início quando o turno passa da meia-noite.",
+            "example": "07:00"
+          },
+          "ordem": {
+            "type": "integer",
+            "description": "Posição na lista. O turno novo entra no fim."
+          }
+        },
+        "required": [
+          "id",
+          "nome",
+          "horaInicio",
+          "horaFim",
+          "ordem"
+        ],
+        "description": "Período do dia. O paciente escolhe o turno na pesquisa, e o totem usa o do horário atual. Turnos não são desativados nem apagados."
       }
     },
     "parameters": {}
@@ -1464,6 +1523,925 @@
                   "erro": {
                     "codigo": "NAO_ENCONTRADO",
                     "mensagem": "Setor não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categorias": {
+      "get": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Categorias, na ordem",
+        "description": "Ativas e inativas, na ordem definida e sem paginação. As categorias valem para todos os setores: qualquer perfil logado recebe a lista inteira.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "As categorias, na ordem.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 1,
+                      "nome": "Recepção",
+                      "ordem": 1,
+                      "ativa": true
+                    },
+                    {
+                      "id": 2,
+                      "nome": "Triagem",
+                      "ordem": 2,
+                      "ativa": true
+                    },
+                    {
+                      "id": 7,
+                      "nome": "Tempo de Espera",
+                      "ordem": 3,
+                      "ativa": false
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Categoria"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: com a senha provisória, até a troca.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Troque a senha provisória para continuar.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Cria uma categoria",
+        "description": "A categoria nasce ativa e entra no fim da ordem.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "description": "De 2 a 100 caracteres; os espaços das pontas saem. Não se repete entre as categorias, nem com maiúsculas diferentes (\"Recepção\" e \"RECEPÇÃO\" são a mesma).",
+                    "example": "Recepção"
+                  }
+                },
+                "required": [
+                  "nome"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Categoria criada.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 8,
+                    "nome": "Farmácia",
+                    "ordem": 8,
+                    "ativa": true
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Categoria"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 2 caracteres (em `nome`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "nome",
+                        "mensagem": "Informe o nome da categoria"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `categorias:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: o nome já é de outra categoria, mesmo com maiúsculas diferentes.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Já existe uma categoria com este nome.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/categorias/{id}": {
+      "patch": {
+        "tags": [
+          "Categorias"
+        ],
+        "summary": "Edita, ativa ou desativa uma categoria",
+        "description": "Muda o nome, a situação ou os dois; a ordem não muda. Nada é apagado: as perguntas e as respostas da categoria inativa continuam.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "description": "De 2 a 100 caracteres; os espaços das pontas saem. Não se repete entre as categorias, nem com maiúsculas diferentes (\"Recepção\" e \"RECEPÇÃO\" são a mesma).",
+                    "example": "Recepção"
+                  },
+                  "ativa": {
+                    "type": "boolean",
+                    "description": "`true` ativa a categoria; `false` a desativa."
+                  }
+                },
+                "description": "Muda o nome, ativa ou desativa, ou faz os dois; o que não vier fica como está."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Categoria editada.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 1,
+                    "nome": "Recepção",
+                    "ordem": 1,
+                    "ativa": true
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Categoria"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 2 caracteres (em `nome`), `ativa` que não é booleano ou nada para mudar.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "nome",
+                        "mensagem": "Informe o nome da categoria"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `categorias:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe categoria com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Categoria não encontrada.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: o nome já é de outra categoria, mesmo com maiúsculas diferentes.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Já existe uma categoria com este nome.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/turnos": {
+      "get": {
+        "tags": [
+          "Turnos"
+        ],
+        "summary": "Turnos, na ordem",
+        "description": "Todos os turnos, na ordem definida e sem paginação. Qualquer perfil logado recebe a lista inteira.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Os turnos, na ordem.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 1,
+                      "nome": "Manhã",
+                      "horaInicio": "07:00",
+                      "horaFim": "13:00",
+                      "ordem": 1
+                    },
+                    {
+                      "id": 2,
+                      "nome": "Tarde",
+                      "horaInicio": "13:00",
+                      "horaFim": "19:00",
+                      "ordem": 2
+                    },
+                    {
+                      "id": 3,
+                      "nome": "Noite",
+                      "horaInicio": "19:00",
+                      "horaFim": "07:00",
+                      "ordem": 3
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Turno"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: com a senha provisória, até a troca.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Troque a senha provisória para continuar.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Turnos"
+        ],
+        "summary": "Cria um turno",
+        "description": "O turno entra no fim da ordem. O fim pode ser menor que o início, no turno que passa da meia-noite.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "description": "De 2 a 100 caracteres; os espaços das pontas saem.",
+                    "example": "Manhã"
+                  },
+                  "horaInicio": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                    "description": "Início, em HH:mm, de 00:00 a 23:59.",
+                    "example": "19:00"
+                  },
+                  "horaFim": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                    "description": "Fim, em HH:mm, de 00:00 a 23:59, diferente do início. Menor que o início no turno que passa da meia-noite, como o das 19:00 às 07:00.",
+                    "example": "07:00"
+                  }
+                },
+                "required": [
+                  "nome",
+                  "horaInicio",
+                  "horaFim"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Turno criado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 3,
+                    "nome": "Noite",
+                    "horaInicio": "19:00",
+                    "horaFim": "07:00",
+                    "ordem": 3
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Turno"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 2 caracteres (em `nome`), hora fora do formato HH:mm (em `horaInicio` ou `horaFim`) ou fim igual ao início (em `horaFim`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "horaFim",
+                        "mensagem": "O fim precisa ser diferente do início"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `turnos:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/turnos/{id}": {
+      "patch": {
+        "tags": [
+          "Turnos"
+        ],
+        "summary": "Edita o nome e os horários de um turno",
+        "description": "Recebe o turno inteiro: o nome e os dois horários. A ordem não muda. Turnos não são desativados nem apagados.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "description": "De 2 a 100 caracteres; os espaços das pontas saem.",
+                    "example": "Manhã"
+                  },
+                  "horaInicio": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                    "description": "Início, em HH:mm, de 00:00 a 23:59.",
+                    "example": "19:00"
+                  },
+                  "horaFim": {
+                    "type": "string",
+                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                    "description": "Fim, em HH:mm, de 00:00 a 23:59, diferente do início. Menor que o início no turno que passa da meia-noite, como o das 19:00 às 07:00.",
+                    "example": "07:00"
+                  }
+                },
+                "required": [
+                  "nome",
+                  "horaInicio",
+                  "horaFim"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Turno editado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 3,
+                    "nome": "Noite",
+                    "horaInicio": "19:00",
+                    "horaFim": "07:00",
+                    "ordem": 3
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Turno"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 2 caracteres (em `nome`), hora fora do formato HH:mm (em `horaInicio` ou `horaFim`) ou fim igual ao início (em `horaFim`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "horaFim",
+                        "mensagem": "O fim precisa ser diferente do início"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `turnos:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe turno com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Turno não encontrado.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }
