@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express'
 import { AppError } from '../shared/errors/app-error'
-import { podeAcessarSetor } from '../shared/security/acesso'
+import { MENSAGEM_FORA_DO_SETOR, podeAcessarSetor } from '../shared/security/acesso'
 import { usuarioLogado } from './authenticate'
 
 const ID = /^[1-9]\d*$/
@@ -29,7 +29,7 @@ export function setorScope(parametro: string, origem: 'params' | 'query' = 'para
     if (usuario.setorIds === null || (origem === 'query' && valor === undefined)) return next()
 
     if (typeof valor !== 'string' || !ID.test(valor) || !podeAcessarSetor(usuario, Number(valor))) {
-      throw AppError.semPermissao('Você não tem acesso a este setor.')
+      throw AppError.semPermissao(MENSAGEM_FORA_DO_SETOR)
     }
     next()
   }

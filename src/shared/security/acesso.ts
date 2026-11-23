@@ -17,6 +17,9 @@ export interface UsuarioAutenticado {
   setorIds: readonly number[] | null
 }
 
+/** O 403 de quem pede um setor que não é seu, no `setorScope` e nos services que conferem o setor do registro. */
+export const MENSAGEM_FORA_DO_SETOR = 'Você não tem acesso a este setor.'
+
 export function temPermissao(usuario: UsuarioAutenticado, permissao: Permissao): boolean {
   return usuario.permissoes.includes(permissao)
 }
