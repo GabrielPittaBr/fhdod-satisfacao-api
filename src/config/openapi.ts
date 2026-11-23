@@ -3,6 +3,7 @@ import pacote from '../../package.json' with { type: 'json' }
 import { documentarAuth } from '../modules/auth/auth.docs'
 import { documentarCategorias } from '../modules/categorias/categorias.docs'
 import { documentarHealth } from '../modules/health/health.docs'
+import { documentarPerguntas } from '../modules/perguntas/perguntas.docs'
 import { documentarSetores } from '../modules/setores/setores.docs'
 import { documentarTurnos } from '../modules/turnos/turnos.docs'
 import { codigoDeErroSchema, detalheErroSchema, erroSchema } from '../shared/errors/erro.schemas'
@@ -23,6 +24,7 @@ const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [
   documentarSetores,
   documentarCategorias,
   documentarTurnos,
+  documentarPerguntas,
 ]
 
 /**
