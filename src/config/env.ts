@@ -16,6 +16,14 @@ const duracaoEmSegundos = z
       Number(valor.slice(0, -1)) * SEGUNDOS_POR_UNIDADE[valor.at(-1) as keyof typeof SEGUNDOS_POR_UNIDADE],
   )
 
+/** Lista separada por vírgulas, sem os espaços das pontas nem os itens vazios. */
+function separarPorVirgula(valor: string) {
+  return valor
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean)
+}
+
 /** Origem de um site, como http://localhost:5173: protocolo, host e porta, sem caminho nem barra no fim. */
 function ehOrigem(valor: string) {
   try {
@@ -32,12 +40,7 @@ const variaveis = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   CORS_ORIGIN: z
     .string()
-    .transform((valor) =>
-      valor
-        .split(',')
-        .map((origem) => origem.trim())
-        .filter(Boolean),
-    )
+    .transform(separarPorVirgula)
     .pipe(z.array(z.string().refine(ehOrigem)).min(1)),
   LOG_LEVEL: z.enum(NIVEIS_DE_LOG).default('info'),
   DOCS_ENABLED: z.stringbool().optional(),
@@ -47,6 +50,12 @@ const variaveis = z.object({
   ACCESS_TOKEN_TTL: duracaoEmSegundos.default(15 * 60),
   /** Validade do refresh token, em dias. Cada uso troca o token e conta o prazo de novo. */
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(7),
+  /** IPs fora do limite de envios da pesquisa pública, como o do hospital, por onde saem os totens. */
+  RATE_LIMIT_ALLOWLIST: z
+    .string()
+    .default('')
+    .transform(separarPorVirgula)
+    .pipe(z.array(z.union([z.ipv4(), z.ipv6()]))),
 })
 
 // Sem DOCS_ENABLED, o Swagger fica ligado fora de produção. A homologação roda em production e o liga com
@@ -74,6 +83,7 @@ const COMO_PREENCHER: Record<Variavel, string> = {
     'use um texto aleatório de pelo menos 32 caracteres; o .env.example mostra como gerar um',
   ACCESS_TOKEN_TTL: 'use um tempo como 15m, 900s ou 1h',
   REFRESH_TOKEN_TTL_DAYS: 'use um número de dias de 1 a 365, como 7',
+  RATE_LIMIT_ALLOWLIST: 'use IPs separados por vírgula, como 203.0.113.10, ou deixe vazia',
 }
 
 export class ErroDeAmbiente extends Error {
