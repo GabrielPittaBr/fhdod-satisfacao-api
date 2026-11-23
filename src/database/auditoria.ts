@@ -15,8 +15,8 @@ export interface AcaoAuditada {
   entidade: string
   /** O ID da linha, ou `null` quando a ação mexe em várias, como uma nova ordem das perguntas. */
   entidadeId: number | null
-  /** O que mudou. Nenhuma senha nem token vai aqui. */
-  dados: Prisma.InputJsonObject
+  /** O que mudou. Nenhuma senha nem token vai aqui. Sem nada a dizer, como numa senha redefinida, fica nulo. */
+  dados?: Prisma.InputJsonObject
 }
 
 /**

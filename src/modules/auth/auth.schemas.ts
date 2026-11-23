@@ -13,7 +13,9 @@ export const CAMINHO_DO_COOKIE = '/api/v1/auth'
 export const MENSAGEM_LOGIN_INVALIDO = 'E-mail ou senha incorretos.'
 export const MENSAGEM_SENHA_ATUAL_ERRADA = 'A senha atual não confere.'
 
-export const perfilSchema = z.enum(PERFIS).meta({ id: 'Perfil', description: 'Perfil de acesso ao painel.' })
+export const perfilSchema = z
+  .enum(PERFIS, { error: 'Escolha um perfil' })
+  .meta({ id: 'Perfil', description: 'Perfil de acesso ao painel.' })
 
 export const permissaoSchema = z.enum(PERMISSOES).meta({
   id: 'Permissao',
