@@ -16,6 +16,8 @@ export default defineConfig({
       CORS_ORIGIN: 'http://localhost:5173',
       LOG_LEVEL: 'silent',
       JWT_ACCESS_SECRET: 'segredo-dos-testes-nao-usar-fora-deles-0123456789',
+      // Um IP de documentação (TEST-NET-3) no papel do IP do hospital, fora do limite de envios da pesquisa.
+      RATE_LIMIT_ALLOWLIST: '203.0.113.10',
     },
     projects: [
       {
