@@ -6,16 +6,16 @@
 
 **Bloqueado por:** 05 — Login, sessão e acesso por perfil e setor
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Critérios de aceite:**
 
-- [ ] Todas as rotas exigem `usuarios:gerenciar`.
-- [ ] `GET /usuarios` devolve `{ id, nome, email, perfil, ativo, trocarSenha, setorIds, ultimoLoginEm }`, em ordem alfabética, sem paginação.
-- [ ] `POST /usuarios` valida o nome (pelo menos 3 caracteres), o e-mail e o perfil, grava o e-mail em minúsculas e devolve 201 com `{ usuario, senhaProvisoria }`. A senha provisória segue a regra de senha, só aparece nessa resposta e obriga a troca no primeiro acesso. E-mail repetido devolve 409 com "Já existe um usuário com este e-mail.".
-- [ ] `PATCH /usuarios/:id` edita o nome e o perfil; o e-mail não muda.
-- [ ] `PUT /usuarios/:id/setores` recebe `{ setorIds }`, recusa setor inexistente (400 em `setorIds`) e responde 204.
-- [ ] `PATCH /usuarios/:id/status` recebe `{ ativo }` e responde 204. Desativar revoga todas as sessões da pessoa, e ninguém desativa a própria conta (409 com "Você não pode desativar a própria conta.").
-- [ ] `POST /usuarios/:id/redefinir-senha` gera outra senha provisória, devolve `{ senhaProvisoria }`, obriga a troca e revoga as sessões.
-- [ ] Mudanças de perfil, de setores, de status e de senha vão para a auditoria, sem nenhuma senha.
-- [ ] Testes de integração: criação com senha provisória, primeiro login com `trocarSenha`, sessão derrubada ao desativar e as regras acima.
+- [x] Todas as rotas exigem `usuarios:gerenciar`.
+- [x] `GET /usuarios` devolve `{ id, nome, email, perfil, ativo, trocarSenha, setorIds, ultimoLoginEm }`, em ordem alfabética, sem paginação.
+- [x] `POST /usuarios` valida o nome (pelo menos 3 caracteres), o e-mail e o perfil, grava o e-mail em minúsculas e devolve 201 com `{ usuario, senhaProvisoria }`. A senha provisória segue a regra de senha, só aparece nessa resposta e obriga a troca no primeiro acesso. E-mail repetido devolve 409 com "Já existe um usuário com este e-mail.".
+- [x] `PATCH /usuarios/:id` edita o nome e o perfil; o e-mail não muda.
+- [x] `PUT /usuarios/:id/setores` recebe `{ setorIds }`, recusa setor inexistente (400 em `setorIds`) e responde 204.
+- [x] `PATCH /usuarios/:id/status` recebe `{ ativo }` e responde 204. Desativar revoga todas as sessões da pessoa, e ninguém desativa a própria conta (409 com "Você não pode desativar a própria conta.").
+- [x] `POST /usuarios/:id/redefinir-senha` gera outra senha provisória, devolve `{ senhaProvisoria }`, obriga a troca e revoga as sessões.
+- [x] Mudanças de perfil, de setores, de status e de senha vão para a auditoria, sem nenhuma senha.
+- [x] Testes de integração: criação com senha provisória, primeiro login com `trocarSenha`, sessão derrubada ao desativar e as regras acima.
