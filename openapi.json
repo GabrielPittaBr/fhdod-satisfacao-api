@@ -395,6 +395,58 @@
           "ordem"
         ],
         "description": "Período do dia. O paciente escolhe o turno na pesquisa, e o totem usa o do horário atual. Turnos não são desativados nem apagados."
+      },
+      "Usuario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "description": "Em minúsculas. É o login da pessoa e não muda."
+          },
+          "perfil": {
+            "$ref": "#/components/schemas/Perfil"
+          },
+          "ativo": {
+            "type": "boolean",
+            "description": "A conta inativa não entra no painel, e as sessões dela caem."
+          },
+          "trocarSenha": {
+            "type": "boolean",
+            "description": "Ainda com a senha provisória: a troca é obrigatória no próximo acesso."
+          },
+          "setorIds": {
+            "type": "array",
+            "items": {
+              "type": "integer"
+            },
+            "description": "Setores ligados à pessoa, em ordem de ID. Limitam o que o Gestor e o Visualizador enxergam; o Super Admin e a Ouvidoria enxergam todos."
+          },
+          "ultimoLoginEm": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "O último login, em UTC; `null` se a pessoa nunca entrou."
+          }
+        },
+        "required": [
+          "id",
+          "nome",
+          "email",
+          "perfil",
+          "ativo",
+          "trocarSenha",
+          "setorIds",
+          "ultimoLoginEm"
+        ],
+        "description": "Conta do painel."
       }
     },
     "parameters": {}
@@ -3422,6 +3474,1000 @@
                   "erro": {
                     "codigo": "NAO_ENCONTRADO",
                     "mensagem": "Pergunta não encontrada.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Contas do painel",
+        "description": "Ativas e inativas, em ordem alfabética e sem paginação.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "As contas, em ordem alfabética.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 7,
+                      "nome": "Ana Souza",
+                      "email": "ana.souza@hospital.com.br",
+                      "perfil": "GESTOR",
+                      "ativo": true,
+                      "trocarSenha": false,
+                      "setorIds": [
+                        1,
+                        4
+                      ],
+                      "ultimoLoginEm": "2026-11-20T11:42:05.120Z"
+                    },
+                    {
+                      "id": 9,
+                      "nome": "Bruno Lima",
+                      "email": "bruno.lima@hospital.com.br",
+                      "perfil": "OUVIDORIA",
+                      "ativo": true,
+                      "trocarSenha": true,
+                      "setorIds": [],
+                      "ultimoLoginEm": null
+                    },
+                    {
+                      "id": 3,
+                      "nome": "Carla Mendes",
+                      "email": "carla.mendes@hospital.com.br",
+                      "perfil": "VISUALIZADOR",
+                      "ativo": false,
+                      "trocarSenha": false,
+                      "setorIds": [
+                        2
+                      ],
+                      "ultimoLoginEm": "2026-10-02T19:03:44.981Z"
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Usuario"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `usuarios:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Cria uma conta com senha provisória",
+        "description": "A conta nasce ativa, sem setores e com a troca de senha obrigatória no primeiro acesso. A senha provisória só aparece nesta resposta, que não fica em cache (`Cache-Control: no-store`). Os setores são definidos em `PUT /usuarios/{id}/setores`. A criação vai para a auditoria, sem a senha.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 100,
+                    "description": "De 3 a 100 caracteres; os espaços das pontas saem.",
+                    "example": "Ana Souza"
+                  },
+                  "email": {
+                    "type": "string",
+                    "maxLength": 254,
+                    "format": "email",
+                    "description": "Gravado em minúsculas. Não se repete entre os usuários e não muda depois.",
+                    "example": "ana.souza@hospital.com.br"
+                  },
+                  "perfil": {
+                    "$ref": "#/components/schemas/Perfil"
+                  }
+                },
+                "required": [
+                  "nome",
+                  "email",
+                  "perfil"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Conta criada.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "usuario": {
+                      "id": 7,
+                      "nome": "Ana Souza",
+                      "email": "ana.souza@hospital.com.br",
+                      "perfil": "GESTOR",
+                      "ativo": true,
+                      "trocarSenha": true,
+                      "setorIds": [],
+                      "ultimoLoginEm": null
+                    },
+                    "senhaProvisoria": "Kp7m-Qx3r-Tz9w"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "usuario": {
+                          "$ref": "#/components/schemas/Usuario"
+                        },
+                        "senhaProvisoria": {
+                          "type": "string",
+                          "description": "Gerada pela API e mostrada só nesta resposta: o banco guarda o hash. Segue a regra de senha, e a troca é obrigatória no primeiro acesso.",
+                          "example": "Kp7m-Qx3r-Tz9w"
+                        }
+                      },
+                      "required": [
+                        "usuario",
+                        "senhaProvisoria"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 3 caracteres (em `nome`), e-mail inválido (em `email`) ou perfil desconhecido (em `perfil`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "email",
+                        "mensagem": "Digite um e-mail válido, como nome@hospital.com.br"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `usuarios:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: o e-mail já é de outra conta.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Já existe um usuário com este e-mail.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{id}": {
+      "patch": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Edita o nome e o perfil",
+        "description": "Só os campos enviados mudam; o e-mail não muda. O perfil novo vale na hora, sem esperar o token vencer. A mudança de perfil vai para a auditoria, com o antes e o depois.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 100,
+                    "description": "De 3 a 100 caracteres; os espaços das pontas saem.",
+                    "example": "Ana Souza"
+                  },
+                  "perfil": {
+                    "$ref": "#/components/schemas/Perfil"
+                  }
+                },
+                "description": "Muda o nome, o perfil ou os dois; o e-mail não muda."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conta editada.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 7,
+                    "nome": "Ana Souza",
+                    "email": "ana.souza@hospital.com.br",
+                    "perfil": "GESTOR",
+                    "ativo": true,
+                    "trocarSenha": false,
+                    "setorIds": [
+                      1,
+                      4
+                    ],
+                    "ultimoLoginEm": "2026-11-20T11:42:05.120Z"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Usuario"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: nome com menos de 3 caracteres (em `nome`), perfil desconhecido (em `perfil`) ou nada para mudar.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "nome",
+                        "mensagem": "Informe o nome completo"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `usuarios:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe usuário com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Usuário não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: a pessoa tenta mudar o próprio perfil.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Você não pode mudar o próprio perfil.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{id}/setores": {
+      "put": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Define os setores da pessoa",
+        "description": "A lista substitui os setores de antes. O escopo novo vale na hora. A mudança vai para a auditoria, com o antes e o depois.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "setorIds": {
+                    "type": "array",
+                    "items": {
+                      "type": "integer",
+                      "exclusiveMinimum": 0,
+                      "maximum": 2147483647
+                    },
+                    "description": "Todos os setores da pessoa, que substituem os de antes; a lista vazia tira todos. Repetidos contam uma vez, e setores inativos valem.",
+                    "example": [
+                      1,
+                      4
+                    ]
+                  }
+                },
+                "required": [
+                  "setorIds"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Setores definidos."
+          },
+          "400": {
+            "description": "`VALIDACAO`: algum setor não existe (em `setorIds`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "setorIds",
+                        "mensagem": "Um dos setores escolhidos não existe."
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `usuarios:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe usuário com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Usuário não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{id}/status": {
+      "patch": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Ativa ou desativa uma conta",
+        "description": "Nada é apagado. Desativar derruba na hora todas as sessões da pessoa, que não entra mais até ser ativada de novo. A mudança vai para a auditoria.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "ativo": {
+                    "type": "boolean",
+                    "description": "`true` ativa a conta; `false` a desativa e derruba as sessões."
+                  }
+                },
+                "required": [
+                  "ativo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Situação da conta atualizada."
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "ativo",
+                        "mensagem": "Obrigatório"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `usuarios:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe usuário com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Usuário não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: a pessoa tenta desativar a própria conta.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Você não pode desativar a própria conta.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/usuarios/{id}/redefinir-senha": {
+      "post": {
+        "tags": [
+          "Usuários"
+        ],
+        "summary": "Gera outra senha provisória",
+        "description": "Para quem esqueceu a senha: a senha de antes deixa de valer, a troca passa a ser obrigatória no próximo acesso e as sessões da pessoa caem. A senha nova só aparece nesta resposta, que não fica em cache. A redefinição vai para a auditoria, sem a senha.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Senha redefinida.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "senhaProvisoria": "Wr4t-hN8c-Zm2p"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "senhaProvisoria": {
+                          "type": "string",
+                          "description": "Gerada pela API e mostrada só nesta resposta: o banco guarda o hash. Segue a regra de senha, e a troca é obrigatória no primeiro acesso.",
+                          "example": "Kp7m-Qx3r-Tz9w"
+                        }
+                      },
+                      "required": [
+                        "senhaProvisoria"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "contato.telefone",
+                        "mensagem": "Telefone com DDD, só números"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `usuarios:gerenciar` (só o Super Admin a tem) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe usuário com este ID.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Usuário não encontrado.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }

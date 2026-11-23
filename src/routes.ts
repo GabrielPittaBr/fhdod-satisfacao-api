@@ -4,6 +4,7 @@ import categoriasRoutes from './modules/categorias/categorias.routes'
 import perguntasRoutes from './modules/perguntas/perguntas.routes'
 import setoresRoutes from './modules/setores/setores.routes'
 import turnosRoutes from './modules/turnos/turnos.routes'
+import usuariosRoutes from './modules/usuarios/usuarios.routes'
 
 /**
  * Rotas da API em /api/v1. Cada módulo registra aqui o seu roteador e a documentação dele no MODULOS do
@@ -17,5 +18,6 @@ export function criarRotas(): Router {
   routes.use(categoriasRoutes)
   routes.use(turnosRoutes)
   routes.use(perguntasRoutes)
+  routes.use(usuariosRoutes)
   return routes
 }
