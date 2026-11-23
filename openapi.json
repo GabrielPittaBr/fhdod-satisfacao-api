@@ -3,7 +3,7 @@
   "info": {
     "title": "API de Satisfação Hospitalar da FHDOD",
     "version": "0.1.0",
-    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log.\n- Rotas do painel: token de acesso em `Authorization: Bearer <token>`. Sem ele, vencido ou com o usuário inativo, 401 `NAO_AUTENTICADO`; sem a permissão ou fora dos setores da pessoa, 403 `SEM_PERMISSAO`. Com a senha provisória, as rotas do painel respondem 403 até a troca em `/auth/senha`; `/auth/me` funciona."
+    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log.\n- Rotas do painel: token de acesso em `Authorization: Bearer <token>`. Sem ele, vencido ou com o usuário inativo, 401 `NAO_AUTENTICADO`; sem a permissão ou fora dos setores da pessoa, 403 `SEM_PERMISSAO`. Com a senha provisória, as rotas do painel respondem 403 até a troca em `/auth/senha`; `/auth/me` funciona.\n- Rotas `/publico`: a pesquisa do paciente, sem login."
   },
   "components": {
     "securitySchemes": {
@@ -21,6 +21,14 @@
       }
     },
     "schemas": {
+      "Canal": {
+        "type": "string",
+        "enum": [
+          "WEB",
+          "TOTEM"
+        ],
+        "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor."
+      },
       "Categoria": {
         "type": "object",
         "properties": {
@@ -46,6 +54,15 @@
           "ativa"
         ],
         "description": "Etapa do atendimento comparável entre setores, como Recepção ou Triagem."
+      },
+      "Classificacao": {
+        "type": "string",
+        "enum": [
+          "NORMAL",
+          "BAIXA",
+          "BAIXISSIMA"
+        ],
+        "description": "A pior entre a do NPS e a de cada nota de 1 a 5, com os limites das configurações (no padrão, NPS até 6 é baixa e até 2 é baixíssima; nota até 3 é baixa e 1 é baixíssima). O front escolhe a próxima tela por ela."
       },
       "CodigoDeErro": {
         "type": "string",
@@ -77,6 +94,60 @@
           "mensagem"
         ],
         "description": "Problema num campo."
+      },
+      "EnvioResposta": {
+        "type": "object",
+        "properties": {
+          "chaveIdempotencia": {
+            "type": "string",
+            "format": "uuid",
+            "description": "UUID criado pelo front a cada avaliação e repetido em cada nova tentativa do mesmo envio. A mesma chave devolve a avaliação já gravada, sem criar outra.",
+            "example": "4b7e0c1a-9d2f-4c11-8a35-1f0e6b2d7c90"
+          },
+          "canal": {
+            "$ref": "#/components/schemas/Canal"
+          },
+          "dataAtendimento": {
+            "type": "string",
+            "format": "date",
+            "description": "O dia do atendimento, em AAAA-MM-DD; não pode ser depois de hoje no horário de Brasília.",
+            "example": "2026-11-10"
+          },
+          "turnoId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 2147483647,
+            "example": 1
+          },
+          "itens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemEnvio"
+            },
+            "default": [],
+            "description": "Uma resposta por pergunta ativa do setor, no máximo; as puladas não vêm, e a lista pode ser vazia."
+          },
+          "nps": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10,
+            "description": "A nota de 0 a 10, obrigatória.",
+            "example": 6
+          },
+          "site": {
+            "type": "string",
+            "maxLength": 0,
+            "description": "Campo isca: o formulário o mantém invisível para pessoas (fora da tela, com `tabindex=\"-1\"` e `autocomplete=\"off\"`) e o envia vazio, ou não o envia. Preenchido, o envio é recusado e nada é gravado."
+          }
+        },
+        "required": [
+          "chaveIdempotencia",
+          "canal",
+          "dataAtendimento",
+          "turnoId",
+          "nps"
+        ],
+        "description": "Uma avaliação, gravada ao confirmar a nota de 0 a 10."
       },
       "Erro": {
         "type": "object",
@@ -115,6 +186,30 @@
           "erro"
         ],
         "description": "Corpo de toda resposta de erro da API."
+      },
+      "ItemEnvio": {
+        "type": "object",
+        "properties": {
+          "perguntaId": {
+            "type": "integer",
+            "exclusiveMinimum": 0,
+            "maximum": 2147483647,
+            "example": 12
+          },
+          "valorNumero": {
+            "type": "number",
+            "description": "Na escala de 1 a 5: a nota, inteira, de 1 a 5.",
+            "example": 4
+          },
+          "valorTexto": {
+            "type": "string",
+            "description": "No sim ou não, `SIM` ou `NAO`; na múltipla escolha, uma das opções, como veio na pesquisa; no texto livre, a resposta, não vazia e dentro do `textoLimiteCaracteres` (os espaços das pontas saem)."
+          }
+        },
+        "required": [
+          "perguntaId"
+        ],
+        "description": "A resposta de uma pergunta. A pergunta pulada não vem."
       },
       "Meta": {
         "type": "object",
@@ -203,6 +298,37 @@
         ],
         "description": "Pergunta da pesquisa de um setor."
       },
+      "PerguntaPublica": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoPergunta"
+          },
+          "opcoes": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "As opções da múltipla escolha, na ordem em que aparecem; `null` nos outros tipos."
+          }
+        },
+        "required": [
+          "id",
+          "texto",
+          "tipo",
+          "opcoes"
+        ],
+        "description": "Pergunta ativa da pesquisa, como o paciente a vê."
+      },
       "Permissao": {
         "type": "string",
         "enum": [
@@ -224,6 +350,125 @@
           "escalas:gerenciar"
         ],
         "description": "O que a pessoa pode fazer no painel. O mapa de cada perfil existe só na API; o front usa a lista do `/auth/me` para esconder menus."
+      },
+      "PesquisaPublica": {
+        "type": "object",
+        "properties": {
+          "setor": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string"
+              },
+              "slug": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "nome",
+              "slug"
+            ]
+          },
+          "perguntas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PerguntaPublica"
+            },
+            "description": "Só as ativas, na ordem da pesquisa."
+          },
+          "turnos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "horaInicio": {
+                  "type": "string",
+                  "description": "Início, em HH:mm.",
+                  "example": "07:00"
+                },
+                "horaFim": {
+                  "type": "string",
+                  "description": "Fim, em HH:mm. Menor que o início quando o turno passa da meia-noite.",
+                  "example": "13:00"
+                }
+              },
+              "required": [
+                "id",
+                "nome",
+                "horaInicio",
+                "horaFim"
+              ]
+            },
+            "description": "Todos os turnos, na ordem definida. O totem usa o do horário atual."
+          },
+          "npsTexto": {
+            "type": "string",
+            "description": "O texto da pergunta de 0 a 10."
+          },
+          "textoLimiteCaracteres": {
+            "type": "integer",
+            "description": "Tamanho máximo das respostas em texto e dos comentários."
+          },
+          "totem": {
+            "type": "object",
+            "properties": {
+              "reinicioSegundos": {
+                "type": "integer",
+                "description": "Espera antes de o totem reiniciar a pesquisa."
+              },
+              "inatividadeSegundos": {
+                "type": "integer",
+                "description": "Segundos sem toque até o totem perguntar se a pessoa ainda está lá."
+              }
+            },
+            "required": [
+              "reinicioSegundos",
+              "inatividadeSegundos"
+            ]
+          }
+        },
+        "required": [
+          "setor",
+          "perguntas",
+          "turnos",
+          "npsTexto",
+          "textoLimiteCaracteres",
+          "totem"
+        ],
+        "description": "O que a tela da pesquisa precisa, lido do cadastro e das configurações. Os limites de nota baixa não vêm: a classificação é da API."
+      },
+      "RespostaCriada": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "classificacao": {
+            "$ref": "#/components/schemas/Classificacao"
+          },
+          "tokenComplemento": {
+            "type": "string",
+            "description": "Para anexar o comentário e o telefone, no cabeçalho `X-Complemento-Token`, uma vez só. Um reenvio com a mesma chave recebe outro, que substitui este."
+          },
+          "expiraEm": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Até quando o token vale: 30 minutos depois do envio."
+          }
+        },
+        "required": [
+          "id",
+          "classificacao",
+          "tokenComplemento",
+          "expiraEm"
+        ],
+        "description": "A avaliação gravada."
       },
       "Saude": {
         "type": "object",
@@ -997,6 +1242,318 @@
                   "erro": {
                     "codigo": "NAO_AUTENTICADO",
                     "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/publico/setores/{slug}/pesquisa": {
+      "get": {
+        "tags": [
+          "Pesquisa pública"
+        ],
+        "summary": "Abre a pesquisa do setor",
+        "description": "Sem login. O nome do setor, as perguntas ativas na ordem, os turnos e os textos e tempos que a tela usa, lidos das configurações.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "O endereço do setor, de `/s/<slug>` e `/totem/<slug>`."
+            },
+            "required": true,
+            "description": "O endereço do setor, de `/s/<slug>` e `/totem/<slug>`.",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A pesquisa do setor.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "setor": {
+                      "nome": "Pronto Atendimento",
+                      "slug": "pronto-atendimento"
+                    },
+                    "perguntas": [
+                      {
+                        "id": 12,
+                        "texto": "Como foi o atendimento na recepção?",
+                        "tipo": "ESCALA_1_5",
+                        "opcoes": null
+                      },
+                      {
+                        "id": 13,
+                        "texto": "Você recebeu as orientações sobre o exame?",
+                        "tipo": "MULTIPLA_ESCOLHA",
+                        "opcoes": [
+                          "Sim, e entendi tudo",
+                          "Sim, mas fiquei com dúvidas",
+                          "Não"
+                        ]
+                      },
+                      {
+                        "id": 14,
+                        "texto": "O tempo de espera foi informado?",
+                        "tipo": "SIM_NAO",
+                        "opcoes": null
+                      }
+                    ],
+                    "turnos": [
+                      {
+                        "id": 1,
+                        "nome": "Manhã",
+                        "horaInicio": "07:00",
+                        "horaFim": "13:00"
+                      },
+                      {
+                        "id": 2,
+                        "nome": "Tarde",
+                        "horaInicio": "13:00",
+                        "horaFim": "19:00"
+                      },
+                      {
+                        "id": 3,
+                        "nome": "Noite",
+                        "horaInicio": "19:00",
+                        "horaFim": "07:00"
+                      }
+                    ],
+                    "npsTexto": "De 0 a 10, qual a probabilidade de você recomendar o hospital a alguém?",
+                    "textoLimiteCaracteres": 500,
+                    "totem": {
+                      "reinicioSegundos": 15,
+                      "inatividadeSegundos": 60
+                    }
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/PesquisaPublica"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "contato.telefone",
+                        "mensagem": "Telefone com DDD, só números"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe setor com este endereço, ou ele está desativado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Esta pesquisa não está disponível.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/publico/setores/{slug}/respostas": {
+      "post": {
+        "tags": [
+          "Pesquisa pública"
+        ],
+        "summary": "Envia a avaliação",
+        "description": "Sem login, com limite de envios por IP (os IPs do `RATE_LIMIT_ALLOWLIST`, como o do hospital, ficam fora dele). Grava a avaliação ao confirmar a nota de 0 a 10, mesmo sem nenhuma outra pergunta respondida, e devolve a classificação e o token de complemento, numa resposta sem cache. A mesma `chaveIdempotencia` enviada de novo devolve a avaliação já gravada (o mesmo `id` e a mesma `classificacao`), com um token novo, que substitui o anterior. O IP de quem envia não é gravado.",
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "description": "O endereço do setor, de `/s/<slug>` e `/totem/<slug>`."
+            },
+            "required": true,
+            "description": "O endereço do setor, de `/s/<slug>` e `/totem/<slug>`.",
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnvioResposta"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Avaliação gravada (ou já gravada, num reenvio).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 845,
+                    "classificacao": "BAIXA",
+                    "tokenComplemento": "kZ3pX9qT2vLm8RwYc4Nf6Hb1Jd7Ks0Ga5Ue3Oi9Py2",
+                    "expiraEm": "2026-11-10T14:52:00.000Z"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RespostaCriada"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: um item em `detalhes` por problema: NPS fora de 0 a 10 (em `nps`), data futura (em `dataAtendimento`), turno inexistente (em `turnoId`), chave que não é UUID (em `chaveIdempotencia`), pergunta que não é uma ativa do setor ou repetida (em `itens.N`), valor errado para o tipo da pergunta (em `itens.N.valorNumero` ou `itens.N.valorTexto`) e o campo isca preenchido (em `site`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "nps",
+                        "mensagem": "Obrigatório, de 0 a 10"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: não existe setor com este endereço, ou ele está desativado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Esta pesquisa não está disponível.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "`CONFLITO`: a chave já foi usada num envio de outro setor, ou no de uma avaliação já complementada.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "CONFLITO",
+                    "mensagem": "Esta avaliação já foi enviada. Obrigado por responder!",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "`LIMITE_ATINGIDO`: mais de 30 envios do mesmo IP em 15 minutos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "LIMITE_ATINGIDO",
+                    "mensagem": "Muitas avaliações enviadas desta rede. Espere alguns minutos e tente de novo.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }
