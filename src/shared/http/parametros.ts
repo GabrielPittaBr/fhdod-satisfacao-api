@@ -15,3 +15,11 @@ export const idSchema = z.coerce
 
 /** Os parâmetros das rotas `/<recurso>/:id`. */
 export const idParams = z.object({ id: idSchema })
+
+/**
+ * ID no corpo de um pedido, como o `categoriaId` de uma pergunta. Chega em JSON, então tem de ser número: o
+ * texto `"3"` não vale. A mensagem pode dizer o que escolher ("Escolha uma categoria").
+ */
+export function idNoCorpo(mensagem = MENSAGEM_ID_INVALIDO) {
+  return z.number({ error: mensagem }).int(mensagem).positive(mensagem).max(MAIOR_ID, mensagem)
+}
