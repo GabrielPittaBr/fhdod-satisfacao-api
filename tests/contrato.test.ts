@@ -102,6 +102,8 @@ describe('contrato da API', () => {
         'Setor',
         'Categoria',
         'Turno',
+        'Pergunta',
+        'TipoPergunta',
       ]),
     )
   })
