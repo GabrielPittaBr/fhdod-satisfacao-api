@@ -16,6 +16,8 @@ export interface OpcoesDoLimite {
   mensagem: string
   /** Conta só as tentativas que falharam (resposta com status 400 ou mais). */
   soFalhas?: boolean
+  /** Requisições que ficam fora do limite e nem entram na conta. */
+  pular?: (req: Request) => boolean
 }
 
 /**
@@ -32,11 +34,13 @@ export function limitarTentativas({
   chave,
   mensagem,
   soFalhas = false,
+  pular = () => false,
 }: OpcoesDoLimite): RequestHandler {
   return rateLimit({
     windowMs: janelaMs,
     limit: maximo,
     skipSuccessfulRequests: soFalhas,
+    skip: (req) => pular(req),
     keyGenerator: (req) => chave(req),
     standardHeaders: 'draft-7',
     legacyHeaders: false,
@@ -65,5 +69,29 @@ export function criarLimiteDeLogin(): RequestHandler {
     soFalhas: true,
     chave: (req) => `${ipKeyGenerator(req.ip ?? '')} ${emailDoCorpo(req)}`,
     mensagem: 'Muitas tentativas. Espere 15 minutos e tente de novo.',
+  })
+}
+
+/** O IP como o Express o lê, sem o prefixo `::ffff:` do IPv4 escrito como IPv6. */
+function ipSemPrefixo(req: Request): string {
+  return (req.ip ?? '').replace(/^::ffff:/, '')
+}
+
+/**
+ * Pesquisa pública: até 30 envios a cada 15 minutos por IP; o seguinte recebe 429 ("Segurança", no plano).
+ * Conta todo envio, aceito ou não, para um robô não testar à vontade. Os IPs de `ipsSemLimite` (o
+ * RATE_LIMIT_ALLOWLIST, com o IP do hospital, por onde saem os totens) ficam fora do limite.
+ *
+ * ponytail: 30 por IP é folgado para uma pessoa e cobre vários celulares atrás do mesmo IP da operadora (CGNAT);
+ * se o hospital vir pacientes barrados pela rede móvel, suba o número aqui.
+ */
+export function criarLimiteDeEnvios(ipsSemLimite: readonly string[]): RequestHandler {
+  const semLimite = new Set(ipsSemLimite)
+  return limitarTentativas({
+    janelaMs: QUINZE_MINUTOS_MS,
+    maximo: 30,
+    chave: (req) => ipKeyGenerator(req.ip ?? ''),
+    pular: (req) => semLimite.has(ipSemPrefixo(req)),
+    mensagem: 'Muitas avaliações enviadas desta rede. Espere alguns minutos e tente de novo.',
   })
 }

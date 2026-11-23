@@ -30,7 +30,17 @@ describe('lerEnv', () => {
       JWT_ACCESS_SECRET: validas.JWT_ACCESS_SECRET,
       ACCESS_TOKEN_TTL: 900,
       REFRESH_TOKEN_TTL_DAYS: 7,
+      RATE_LIMIT_ALLOWLIST: [],
     })
+  })
+
+  it('separa os IPs fora do limite de envios e recusa o que não for IP', () => {
+    expect(
+      lerEnv({ ...validas, RATE_LIMIT_ALLOWLIST: '203.0.113.10, 2001:db8::1' }).RATE_LIMIT_ALLOWLIST,
+    ).toEqual(['203.0.113.10', '2001:db8::1'])
+    expect(mensagemDoErro({ ...validas, RATE_LIMIT_ALLOWLIST: 'hospital.exemplo.com.br' })).toContain(
+      'RATE_LIMIT_ALLOWLIST está inválida',
+    )
   })
 
   it('converte a validade do token de acesso para segundos e a do refresh para número de dias', () => {
