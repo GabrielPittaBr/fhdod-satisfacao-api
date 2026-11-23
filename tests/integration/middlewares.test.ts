@@ -87,6 +87,7 @@ describe('log das requisições', () => {
   const corpo = {
     senha: 'senha-secreta-5',
     novaSenha: 'senha-secreta-6',
+    senhaProvisoria: 'senha-secreta-9',
     contato: { telefone: '51999990007' },
   }
 
@@ -126,7 +127,13 @@ describe('log das requisições', () => {
   it('nunca mostra tokens, cookies, senha nem telefone, nem num log descuidado', async () => {
     const { linhas, texto } = await enviarComSegredos()
 
-    for (const segredo of [...Object.values(segredos), 'senha-secreta-5', 'senha-secreta-6', '51999990007']) {
+    for (const segredo of [
+      ...Object.values(segredos),
+      'senha-secreta-5',
+      'senha-secreta-6',
+      'senha-secreta-9',
+      '51999990007',
+    ]) {
       expect(texto()).not.toContain(segredo.replace('Bearer ', ''))
     }
     expect(texto()).not.toContain('query-secreto-8')
@@ -139,7 +146,12 @@ describe('log das requisições', () => {
         'x-tv-token': '[oculto]',
         'x-complemento-token': '[oculto]',
       },
-      body: { senha: '[oculto]', novaSenha: '[oculto]', contato: { telefone: '[oculto]' } },
+      body: {
+        senha: '[oculto]',
+        novaSenha: '[oculto]',
+        senhaProvisoria: '[oculto]',
+        contato: { telefone: '[oculto]' },
+      },
     })
   })
 })
