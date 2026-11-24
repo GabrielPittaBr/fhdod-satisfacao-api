@@ -97,12 +97,12 @@ export const pontoEvolucaoSchema = z
 
 export type PontoEvolucao = z.output<typeof pontoEvolucaoSchema>
 
-const mediaSchema = z.number().meta({
+export const mediaSchema = z.number().meta({
   description: 'Média das notas de 1 a 5, com uma casa decimal.',
   example: 4.3,
 })
 
-const percentual45Schema = z
+export const percentual45Schema = z
   .number()
   .int()
   .meta({ description: `% de notas ${NOTA_BOA_A_PARTIR_DE} e 5, arredondado, de 0 a 100.`, example: 82 })

@@ -8,6 +8,7 @@ import { criarPesquisaRoutes } from './modules/pesquisa/pesquisa.routes'
 import respostasRoutes from './modules/respostas/respostas.routes'
 import setoresRoutes from './modules/setores/setores.routes'
 import turnosRoutes from './modules/turnos/turnos.routes'
+import tvWallRoutes from './modules/tv-wall/tv-wall.routes'
 import usuariosRoutes from './modules/usuarios/usuarios.routes'
 
 /**
@@ -27,5 +28,6 @@ export function criarRotas(): Router {
   routes.use(respostasRoutes)
   routes.use(contatosRoutes)
   routes.use(dashboardRoutes)
+  routes.use(tvWallRoutes)
   return routes
 }

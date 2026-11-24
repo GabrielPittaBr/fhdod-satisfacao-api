@@ -10,6 +10,7 @@ import { documentarPesquisa } from '../modules/pesquisa/pesquisa.docs'
 import { documentarRespostas } from '../modules/respostas/respostas.docs'
 import { documentarSetores } from '../modules/setores/setores.docs'
 import { documentarTurnos } from '../modules/turnos/turnos.docs'
+import { documentarTvWall } from '../modules/tv-wall/tv-wall.docs'
 import { documentarUsuarios } from '../modules/usuarios/usuarios.docs'
 import { codigoDeErroSchema, detalheErroSchema, erroSchema } from '../shared/errors/erro.schemas'
 import { ESQUEMA_DO_TOKEN_DE_ACESSO } from '../shared/http/documentacao'
@@ -35,6 +36,7 @@ const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [
   documentarRespostas,
   documentarContatos,
   documentarDashboard,
+  documentarTvWall,
 ]
 
 /**
@@ -65,7 +67,8 @@ const DESCRICAO = `Contrato da API do Sistema de Satisfação Hospitalar da FHDO
 - Erro: sempre o componente \`Erro\`, \`{ "erro": { "codigo", "mensagem", "detalhes", "requestId" } }\`. A \`mensagem\` é escrita para quem está na tela.
 - Toda resposta traz o cabeçalho \`X-Request-Id\`, o mesmo \`requestId\` dos erros e do log.
 - Rotas do painel: token de acesso em \`Authorization: Bearer <token>\`. Sem ele, vencido ou com o usuário inativo, 401 \`NAO_AUTENTICADO\`; sem a permissão ou fora dos setores da pessoa, 403 \`SEM_PERMISSAO\`. Com a senha provisória, as rotas do painel respondem 403 até a troca em \`/auth/senha\`; \`/auth/me\` funciona.
-- Rotas \`/publico\`: a pesquisa do paciente, sem login. O complemento da avaliação leva o token devolvido pelo envio no cabeçalho \`X-Complemento-Token\`.`
+- Rotas \`/publico\`: a pesquisa do paciente, sem login. O complemento da avaliação leva o token devolvido pelo envio no cabeçalho \`X-Complemento-Token\`.
+- Rota \`/tv/indicadores\`: a TV Wall, sem login, com o token do link da tela no cabeçalho \`X-Tv-Token\`. Sem ele, com um que não existe ou de uma tela desativada, 401 \`NAO_AUTENTICADO\`.`
 
 export function gerarDocumentoOpenApi() {
   const registry = new OpenAPIRegistry()
