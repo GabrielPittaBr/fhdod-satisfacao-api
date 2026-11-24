@@ -167,8 +167,8 @@ export const dashboardRepository = {
   },
 
   /**
-   * As notas de cada ponto (um setor numa categoria) com notas no período, sem ordem. É a base do ranking, e
-   * será a dos destaques da TV e das exportações.
+   * As notas de cada ponto (um setor numa categoria) com notas no período, sem ordem. É a base do ranking e dos
+   * destaques da TV.
    */
   notasPorPonto(filtros: FiltrosDoPainel, setorIds: readonly number[] | null): Promise<ContagemDoPonto[]> {
     return prisma.$queryRaw<ContagemDoPonto[]>`

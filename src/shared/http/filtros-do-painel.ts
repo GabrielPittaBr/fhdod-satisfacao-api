@@ -88,13 +88,16 @@ export const CAMPOS_DOS_FILTROS_DO_DASHBOARD = {
   canal: canalSchema.optional(),
 }
 
-/** Os filtros do dashboard: `inicio`, `fim` e `base` obrigatórios; `setorId`, `turnoId` e `canal` opcionais. */
+/**
+ * Os filtros do dashboard e das exportações: `inicio`, `fim` e `base` obrigatórios; `setorId`, `turnoId` e `canal`
+ * opcionais. A exportação sai com o que está na tela, e o período dá o nome do arquivo.
+ */
 export const filtrosDoDashboardSchema = z.object(CAMPOS_DOS_FILTROS_DO_DASHBOARD).superRefine(periodoEmOrdem)
 
 /**
- * Os mesmos campos com tudo opcional, para as listas de respostas e de pedidos de retorno e as exportações: sem
- * `inicio` ou sem `fim`, o período fica aberto daquele lado. Sem `base`, vale a data do atendimento. Uma lista
- * que recebe mais alguma coisa, como a paginação, estende estes campos e repete o `periodoEmOrdem`.
+ * Os mesmos campos com tudo opcional, para as listas de respostas e de pedidos de retorno: sem `inicio` ou sem
+ * `fim`, o período fica aberto daquele lado. Sem `base`, vale a data do atendimento. Uma lista que recebe mais
+ * alguma coisa, como a paginação, estende estes campos e repete o `periodoEmOrdem`.
  */
 export const CAMPOS_DOS_FILTROS_DO_PAINEL = {
   ...CAMPOS_DOS_FILTROS_DO_DASHBOARD,
@@ -103,7 +106,7 @@ export const CAMPOS_DOS_FILTROS_DO_PAINEL = {
   base: baseDataSchema.default('ATENDIMENTO'),
 }
 
-/** Os filtros do painel com tudo opcional: o que as listas e as exportações aceitam. */
+/** Os filtros do painel com tudo opcional: o que as listas aceitam. */
 export const filtrosDoPainelSchema = z.object(CAMPOS_DOS_FILTROS_DO_PAINEL).superRefine(periodoEmOrdem)
 
 /** Os filtros já validados: o que o `condicoesDoPainel` recebe, do dashboard ou de qualquer outra lista. */
