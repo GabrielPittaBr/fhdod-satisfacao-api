@@ -35,7 +35,10 @@ export function hojeEmBrasilia(agora = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO_DE_BRASILIA }).format(agora)
 }
 
-export const classificacaoSchema = z.enum(CLASSIFICACOES).meta({
+/** O filtro de classificação fora dos valores aceitos, na lista de respostas. */
+export const MENSAGEM_CLASSIFICACAO = 'Escolha normal, baixa ou baixíssima'
+
+export const classificacaoSchema = z.enum(CLASSIFICACOES, { error: MENSAGEM_CLASSIFICACAO }).meta({
   id: 'Classificacao',
   description:
     'A pior entre a do NPS e a de cada nota de 1 a 5, com os limites das configurações (no padrão, NPS até 6 ' +

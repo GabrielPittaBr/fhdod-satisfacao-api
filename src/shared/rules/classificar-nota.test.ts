@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CONFIGURACOES_PADRAO } from '../constants/configuracoes'
-import { classificarNota } from './classificar-nota'
+import { classificarNota, classificarNotaDaEscala } from './classificar-nota'
 
 const PADRAO = CONFIGURACOES_PADRAO
 
@@ -55,5 +55,29 @@ describe('classificarNota', () => {
     expect(classificarNota(9, [4], exigente)).toBe('BAIXA')
     expect(classificarNota(9, [2], exigente)).toBe('BAIXISSIMA')
     expect(classificarNota(9, [5], exigente)).toBe('NORMAL')
+  })
+})
+
+describe('classificarNotaDaEscala', () => {
+  it('com os limites padrão: 1 é baixíssima, 2 e 3 são baixas, 4 e 5 são normais', () => {
+    expect([1, 2, 3, 4, 5].map((nota) => classificarNotaDaEscala(nota, PADRAO))).toEqual([
+      'BAIXISSIMA',
+      'BAIXA',
+      'BAIXA',
+      'NORMAL',
+      'NORMAL',
+    ])
+  })
+
+  it('é a mesma conta do classificarNota para cada nota, com os limites que recebe', () => {
+    const exigente = { ...PADRAO, escala_limite_baixa: 4, escala_limite_baixissima: 2 }
+
+    for (const limites of [PADRAO, exigente]) {
+      for (const nota of [1, 2, 3, 4, 5]) {
+        expect(classificarNotaDaEscala(nota, limites)).toBe(classificarNota(10, [nota], limites))
+      }
+    }
+    expect(classificarNotaDaEscala(4, exigente)).toBe('BAIXA')
+    expect(classificarNotaDaEscala(2, exigente)).toBe('BAIXISSIMA')
   })
 })

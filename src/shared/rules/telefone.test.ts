@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { digitosDoTelefone, finalDoTelefone, telefoneValido } from './telefone'
+import { digitosDoTelefone, finalDoTelefone, mascararTelefone, telefoneValido } from './telefone'
 
 describe('telefoneValido', () => {
   it('aceita celular e fixo com DDD, com ou sem a máscara', () => {
@@ -41,5 +41,12 @@ describe('digitosDoTelefone e finalDoTelefone', () => {
     expect(digitos).toBe('51999990123')
     expect(finalDoTelefone(digitos)).toBe('0123')
     expect(finalDoTelefone(digitosDoTelefone('(51) 3333-4444'))).toBe('4444')
+  })
+})
+
+describe('mascararTelefone', () => {
+  it('mostra só os 4 últimos dígitos, depois dos pontos', () => {
+    expect(mascararTelefone('0042')).toBe('•••• 0042')
+    expect(mascararTelefone(finalDoTelefone(digitosDoTelefone('(51) 3333-4444')))).toBe('•••• 4444')
   })
 })

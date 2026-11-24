@@ -2,10 +2,12 @@ import { OpenApiGeneratorV31, OpenAPIRegistry } from '@asteasolutions/zod-to-ope
 import pacote from '../../package.json' with { type: 'json' }
 import { documentarAuth } from '../modules/auth/auth.docs'
 import { documentarCategorias } from '../modules/categorias/categorias.docs'
+import { documentarContatos } from '../modules/contatos/contatos.docs'
 import { documentarDashboard } from '../modules/dashboard/dashboard.docs'
 import { documentarHealth } from '../modules/health/health.docs'
 import { documentarPerguntas } from '../modules/perguntas/perguntas.docs'
 import { documentarPesquisa } from '../modules/pesquisa/pesquisa.docs'
+import { documentarRespostas } from '../modules/respostas/respostas.docs'
 import { documentarSetores } from '../modules/setores/setores.docs'
 import { documentarTurnos } from '../modules/turnos/turnos.docs'
 import { documentarUsuarios } from '../modules/usuarios/usuarios.docs'
@@ -30,6 +32,8 @@ const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [
   documentarTurnos,
   documentarPerguntas,
   documentarUsuarios,
+  documentarRespostas,
+  documentarContatos,
   documentarDashboard,
 ]
 

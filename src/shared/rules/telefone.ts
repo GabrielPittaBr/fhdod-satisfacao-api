@@ -20,3 +20,14 @@ export function telefoneValido(telefone: string): boolean {
 export function finalDoTelefone(digitos: string): string {
   return digitos.slice(-4)
 }
+
+/** O que a tela mostra no lugar dos dígitos escondidos. */
+export const DIGITOS_ESCONDIDOS = '••••'
+
+/**
+ * O telefone mascarado, como `•••• 0042`, montado com os 4 últimos dígitos gravados em claro: as listas e o
+ * detalhe nunca decifram o número. O número completo só sai pelo `POST /contatos/:id/revelar-telefone`.
+ */
+export function mascararTelefone(final: string): string {
+  return `${DIGITOS_ESCONDIDOS} ${final}`
+}
