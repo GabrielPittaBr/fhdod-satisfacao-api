@@ -2,20 +2,26 @@ import { ehErroDoPrisma } from '../../database/erros'
 import { TIPO_COM_OPCOES } from '../../shared/constants/tipos-de-pergunta'
 import { AppError, type DetalheErro } from '../../shared/errors/app-error'
 import { classificarNota } from '../../shared/rules/classificar-nota'
+import { digitosDoTelefone, finalDoTelefone } from '../../shared/rules/telefone'
+import { cifrar } from '../../shared/security/crypto'
 import { gerarTokenOpaco, hashDoToken } from '../../shared/security/tokens'
 import {
   pesquisaRepository,
   type NovaResposta,
+  type NovoComplemento,
   type PerguntaDaPesquisa,
   type RespostaGravada,
 } from './pesquisa.repository'
 import {
   MENSAGEM_JA_ENVIADA,
   MENSAGEM_PESQUISA_INDISPONIVEL,
+  MENSAGEM_PRAZO_DO_COMPLEMENTO,
   MENSAGEM_TURNO,
+  MENSAGENS_DO_COMPLEMENTO,
   MENSAGENS_DOS_ITENS,
   RESPOSTAS_SIM_NAO,
   VALIDADE_DO_COMPLEMENTO_MS,
+  type Complemento,
   type EnvioResposta,
   type PesquisaPublica,
   type RespostaCriada,
@@ -200,6 +206,41 @@ export const pesquisaService = {
       const gravadaAoMesmoTempo = await pesquisaRepository.buscarPorChave(envio.chaveIdempotencia)
       if (!gravadaAoMesmoTempo) throw erro
       return reenviada(gravadaAoMesmoTempo, setor.id)
+    }
+  },
+
+  /**
+   * Anexa o comentário, o pedido de retorno ou os dois à avaliação, com o token de complemento do envio, uma
+   * vez só e dentro do prazo. O tamanho do comentário é conferido antes de usar o token: um texto longo demais
+   * dá 400, e a pessoa pode corrigir e mandar de novo. O telefone vai cifrado, só com os dígitos, e com os 4
+   * últimos em claro; o pedido de retorno nasce `NOVO`. Sem token, ou com um que não vale mais, 401.
+   */
+  async complementar(id: number, token: string | undefined, complemento: Complemento): Promise<void> {
+    if (!token) throw AppError.naoAutenticado(MENSAGEM_PRAZO_DO_COMPLEMENTO)
+
+    const { comentario, contato } = complemento
+    if (comentario) {
+      const { texto_limite_caracteres: limite } = await pesquisaRepository.lerConfiguracoes()
+      if (comentario.texto.length > limite) {
+        throw AppError.validacao([
+          { campo: 'comentario.texto', mensagem: MENSAGENS_DO_COMPLEMENTO.textoLongo(limite) },
+        ])
+      }
+    }
+
+    const agora = new Date()
+    const gravar: NovoComplemento = { comentario }
+    if (contato) {
+      const digitos = digitosDoTelefone(contato.telefone)
+      gravar.contato = {
+        telefoneCifrado: cifrar(digitos),
+        telefoneFinal: finalDoTelefone(digitos),
+        consentimentoEm: agora,
+      }
+    }
+
+    if (!(await pesquisaRepository.complementar(id, hashDoToken(token), agora, gravar))) {
+      throw AppError.naoAutenticado(MENSAGEM_PRAZO_DO_COMPLEMENTO)
     }
   },
 }

@@ -4,10 +4,14 @@ import { documentarRota, respostaJson, type ErroDaRota } from '../../shared/http
 import { envelope } from '../../shared/http/respond'
 import {
   abrirPesquisa,
+  CABECALHO_DO_COMPLEMENTO,
+  complementarResposta,
   enviarResposta,
   MENSAGEM_JA_ENVIADA,
   MENSAGEM_NPS,
   MENSAGEM_PESQUISA_INDISPONIVEL,
+  MENSAGEM_PRAZO_DO_COMPLEMENTO,
+  MENSAGENS_DO_COMPLEMENTO,
   pesquisaPublicaSchema,
   respostaCriadaSchema,
   type PesquisaPublica,
@@ -15,6 +19,9 @@ import {
 } from './pesquisa.schemas'
 
 const TAGS = ['Pesquisa pública']
+
+/** Nome, no documento, do esquema de segurança do token de complemento. */
+const ESQUEMA_DO_TOKEN_DE_COMPLEMENTO = 'tokenComplemento'
 
 const PESQUISA_DE_EXEMPLO: PesquisaPublica = {
   setor: { nome: 'Pronto Atendimento', slug: 'pronto-atendimento' },
@@ -55,6 +62,15 @@ const PESQUISA_INDISPONIVEL: ErroDaRota = {
 }
 
 export function documentarPesquisa(registry: OpenAPIRegistry) {
+  registry.registerComponent('securitySchemes', ESQUEMA_DO_TOKEN_DE_COMPLEMENTO, {
+    type: 'apiKey',
+    in: 'header',
+    name: CABECALHO_DO_COMPLEMENTO,
+    description:
+      'O `tokenComplemento` devolvido pelo envio da avaliação, para anexar o comentário e o telefone a ela. ' +
+      'Vale uma vez só, até 30 minutos depois do envio.',
+  })
+
   documentarRota(registry, {
     method: 'get',
     path: '/api/v1/publico/setores/{slug}/pesquisa',
@@ -109,6 +125,38 @@ export function documentarPesquisa(registry: OpenAPIRegistry) {
         codigo: 'LIMITE_ATINGIDO',
         quando: 'mais de 30 envios do mesmo IP em 15 minutos.',
         mensagem: 'Muitas avaliações enviadas desta rede. Espere alguns minutos e tente de novo.',
+      },
+    ],
+  })
+
+  documentarRota(registry, {
+    method: 'post',
+    path: '/api/v1/publico/respostas/{id}/complemento',
+    tags: TAGS,
+    summary: 'Anexa o comentário e o pedido de retorno',
+    description:
+      `Sem login: vale o token de complemento do envio, no cabeçalho \`${CABECALHO_DO_COMPLEMENTO}\`, uma vez ` +
+      'só e até 30 minutos depois do envio. Anexa o comentário, o pedido de retorno ou os dois, numa chamada só: ' +
+      'depois dela, o token não vale mais, mesmo dentro do prazo. O telefone é gravado cifrado (AES-256-GCM), ' +
+      'com os 4 últimos dígitos em claro e a hora do consentimento, e o pedido de retorno nasce `NOVO`. Um ' +
+      'erro de validação não gasta o token. O telefone não aparece em nenhuma resposta nem no log.',
+    security: [{ [ESQUEMA_DO_TOKEN_DE_COMPLEMENTO]: [] }],
+    requisicao: complementarResposta,
+    respostas: { 204: { description: 'Complemento gravado.' } },
+    erros: [
+      {
+        codigo: 'VALIDACAO',
+        quando:
+          'um item em `detalhes` por problema: corpo sem o comentário nem o telefone (em `body`), tipo fora da ' +
+          'lista (em `comentario.tipo`), texto vazio ou acima do `textoLimiteCaracteres` (em `comentario.texto`), ' +
+          'telefone sem DDD ou sem 10 ou 11 dígitos (em `contato.telefone`) e consentimento que não é `true` (em ' +
+          '`contato.consentimento`).',
+        detalhes: [{ campo: 'contato.telefone', mensagem: MENSAGENS_DO_COMPLEMENTO.telefone }],
+      },
+      {
+        codigo: 'NAO_AUTENTICADO',
+        quando: 'sem o token, com o token de outra avaliação, vencido ou já usado.',
+        mensagem: MENSAGEM_PRAZO_DO_COMPLEMENTO,
       },
     ],
   })

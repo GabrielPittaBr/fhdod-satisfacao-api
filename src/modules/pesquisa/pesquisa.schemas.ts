@@ -1,6 +1,8 @@
 import { z } from 'zod'
+import { TIPOS_DE_COMENTARIO } from '../../shared/constants/tipos-de-comentario'
 import { CLASSIFICACOES } from '../../shared/rules/classificar-nota'
-import { idNoCorpo } from '../../shared/http/parametros'
+import { telefoneValido } from '../../shared/rules/telefone'
+import { idNoCorpo, idParams } from '../../shared/http/parametros'
 import { tipoPerguntaSchema } from '../perguntas/perguntas.schemas'
 
 export const MENSAGEM_PESQUISA_INDISPONIVEL = 'Esta pesquisa não está disponível.'
@@ -182,3 +184,79 @@ export const respostaCriadaSchema = z
   .meta({ id: 'RespostaCriada', description: 'A avaliação gravada.' })
 
 export type RespostaCriada = z.output<typeof respostaCriadaSchema>
+
+// ---------- POST /publico/respostas/:id/complemento ----------
+
+/** O cabeçalho que leva o token de complemento devolvido no envio. */
+export const CABECALHO_DO_COMPLEMENTO = 'X-Complemento-Token'
+
+/** O 401 do complemento, para o token que falta, é de outra avaliação, venceu ou já foi usado. */
+export const MENSAGEM_PRAZO_DO_COMPLEMENTO = 'O prazo para complementar esta avaliação terminou.'
+
+/** Os problemas do complemento, no campo do corpo (`comentario.texto`, `contato.telefone`). */
+export const MENSAGENS_DO_COMPLEMENTO = {
+  vazio: 'Envie o comentário, o telefone ou os dois',
+  tipo: 'Escolha o tipo do comentário',
+  texto: 'Escreva o comentário',
+  textoLongo: (limite: number) => `O comentário pode ter até ${limite} caracteres`,
+  telefone: 'Informe o telefone com DDD, como (51) 99999-0000',
+  consentimento: 'O consentimento é obrigatório para guardar o telefone',
+} as const
+
+export const tipoComentarioSchema = z
+  .enum(TIPOS_DE_COMENTARIO, { error: MENSAGENS_DO_COMPLEMENTO.tipo })
+  .meta({ id: 'TipoComentario' })
+
+const comentarioSchema = z.object({
+  tipo: tipoComentarioSchema,
+  texto: z
+    .string({ error: MENSAGENS_DO_COMPLEMENTO.texto })
+    .trim()
+    .min(1, MENSAGENS_DO_COMPLEMENTO.texto)
+    .meta({
+      description:
+        'O que aconteceu, o elogio ou a sugestão: não vazio e até o `textoLimiteCaracteres` da pesquisa (os ' +
+        'espaços das pontas saem).',
+      example: 'Esperei muito na triagem.',
+    }),
+})
+
+const contatoSchema = z.object({
+  // A mensagem é sempre a mesma e nunca repete o que veio: o telefone não aparece em erro nem no log.
+  telefone: z
+    .string({ error: MENSAGENS_DO_COMPLEMENTO.telefone })
+    .refine(telefoneValido, MENSAGENS_DO_COMPLEMENTO.telefone)
+    .meta({
+      description:
+        'Com DDD, de 10 ou 11 dígitos, com ou sem a máscara (espaços, parênteses, hífen e ponto). É gravado ' +
+        'cifrado, só com os dígitos.',
+      example: '(51) 99999-0000',
+    }),
+  consentimento: z.literal(true, { error: MENSAGENS_DO_COMPLEMENTO.consentimento }).meta({
+    description: 'A pessoa autorizou o hospital a guardar o telefone e ligar. Sempre `true`.',
+  }),
+})
+
+const complementoBody = z
+  .object({
+    comentario: comentarioSchema.optional().meta({ description: 'O comentário, se a pessoa escreveu.' }),
+    contato: contatoSchema.optional().meta({
+      description: 'O pedido de retorno, se a pessoa deixou o telefone. A tela o oferece na avaliação baixa.',
+    }),
+  })
+  .refine(
+    ({ comentario, contato }) => comentario !== undefined || contato !== undefined,
+    MENSAGENS_DO_COMPLEMENTO.vazio,
+  )
+  .meta({
+    id: 'Complemento',
+    description: 'O que o paciente anexa à avaliação depois do envio: o comentário, o telefone ou os dois.',
+    example: {
+      comentario: { tipo: 'RECLAMACAO', texto: 'Esperei muito na triagem.' },
+      contato: { telefone: '(51) 99999-0000', consentimento: true },
+    },
+  })
+
+export const complementarResposta = { params: idParams, body: complementoBody }
+
+export type Complemento = z.output<typeof complementoBody>
