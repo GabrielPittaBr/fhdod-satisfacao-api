@@ -6,14 +6,14 @@
 
 **Bloqueado por:** 11 — Comentário e pedido de retorno depois do envio; 13 — Dashboard: filtros, resumo, NPS por setor e evolução
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Critérios de aceite:**
 
-- [ ] `GET /respostas` exige `respostas:ver` e respeita o escopo. Aceita os filtros do painel (todos opcionais aqui), `classificacao`, `comComentario`, `comRetorno`, `pagina`, `porPagina` (padrão 20), `ordenarPor` (`dataAtendimento`, `enviadoEm` ou `nps`; padrão `enviadoEm`) e `ordem` (`asc` ou `desc`; padrão `desc`).
-- [ ] Cada linha vem como `{ id, setorId, setor, canal, dataAtendimento, turno, nps, classificacao, enviadoEm, temComentario, pediuRetorno }`, com `meta`.
-- [ ] `GET /respostas/:id` traz também `itens` (`perguntaId`, `perguntaTexto`, `categoria`, `tipo`, `valorNumero`, `valorTexto` e `classificacao`, esta só nas notas de 1 a 5), `comentario` e `contato` (`id`, `telefoneMascarado`, `status`). Resposta de setor fora do escopo devolve 403, e inexistente, 404.
-- [ ] O telefone aparece sempre mascarado nas listas e no detalhe, como `•••• 0042`, montado com os 4 últimos dígitos, sem decifrar.
-- [ ] `GET /contatos` exige `contatos:ver` e devolve os pedidos de retorno, os mais recentes primeiro, no formato `{ id, respostaId, setor, dataAtendimento, nps, classificacao, comentario, telefoneMascarado, consentimentoEm, status }`, paginados e com filtros de período e setor.
-- [ ] `POST /contatos/:id/revelar-telefone` exige `contatos:ver`, devolve `{ telefone }` completo e registra na auditoria quem revelou e quando.
-- [ ] Testes de integração: filtros e ordenação, escopo do gestor, Visualizador sem acesso às respostas, Gestor sem acesso aos pedidos de retorno, máscara do telefone e auditoria ao revelar.
+- [x] `GET /respostas` exige `respostas:ver` e respeita o escopo. Aceita os filtros do painel (todos opcionais aqui), `classificacao`, `comComentario`, `comRetorno`, `pagina`, `porPagina` (padrão 20), `ordenarPor` (`dataAtendimento`, `enviadoEm` ou `nps`; padrão `enviadoEm`) e `ordem` (`asc` ou `desc`; padrão `desc`).
+- [x] Cada linha vem como `{ id, setorId, setor, canal, dataAtendimento, turno, nps, classificacao, enviadoEm, temComentario, pediuRetorno }`, com `meta`.
+- [x] `GET /respostas/:id` traz também `itens` (`perguntaId`, `perguntaTexto`, `categoria`, `tipo`, `valorNumero`, `valorTexto` e `classificacao`, esta só nas notas de 1 a 5), `comentario` e `contato` (`id`, `telefoneMascarado`, `status`). Resposta de setor fora do escopo devolve 403, e inexistente, 404.
+- [x] O telefone aparece sempre mascarado nas listas e no detalhe, como `•••• 0042`, montado com os 4 últimos dígitos, sem decifrar.
+- [x] `GET /contatos` exige `contatos:ver` e devolve os pedidos de retorno, os mais recentes primeiro, no formato `{ id, respostaId, setor, dataAtendimento, nps, classificacao, comentario, telefoneMascarado, consentimentoEm, status }`, paginados e com filtros de período e setor.
+- [x] `POST /contatos/:id/revelar-telefone` exige `contatos:ver`, devolve `{ telefone }` completo e registra na auditoria quem revelou e quando.
+- [x] Testes de integração: filtros e ordenação, escopo do gestor, Visualizador sem acesso às respostas, Gestor sem acesso aos pedidos de retorno, máscara do telefone e auditoria ao revelar.

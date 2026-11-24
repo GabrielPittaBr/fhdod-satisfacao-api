@@ -1,6 +1,6 @@
+import { lerConfiguracoes } from '../../database/configuracoes'
 import { prisma } from '../../database/prisma'
 import type { Prisma } from '../../generated/prisma/client'
-import { CONFIGURACOES_PADRAO, type Configuracoes } from '../../shared/constants/configuracoes'
 
 /** O que a pesquisa usa de cada pergunta ativa: o que o paciente vê e a categoria que o item copia. */
 const CAMPOS_DA_PERGUNTA = {
@@ -45,19 +45,11 @@ export const pesquisaRepository = {
   },
 
   /**
-   * As configurações do banco. Uma chave que falta, ou com valor de outro tipo, vale o padrão de
-   * `CONFIGURACOES_PADRAO`: a pesquisa não para por causa de uma configuração errada.
+   * As configurações do banco. Uma chave que falta, ou com valor de outro tipo, vale o padrão: a pesquisa não
+   * para por causa de uma configuração errada. A leitura fica em `src/database/configuracoes.ts`, também usada
+   * pelo detalhe das respostas.
    */
-  async lerConfiguracoes(): Promise<Configuracoes> {
-    const linhas = await prisma.configuracao.findMany({ select: { chave: true, valor: true } })
-    const noBanco = new Map(linhas.map(({ chave, valor }) => [chave, valor]))
-    return Object.fromEntries(
-      Object.entries(CONFIGURACOES_PADRAO).map(([chave, padrao]) => {
-        const valor = noBanco.get(chave)
-        return [chave, typeof valor === typeof padrao ? valor : padrao]
-      }),
-    ) as unknown as Configuracoes
-  },
+  lerConfiguracoes,
 
   /** As perguntas ativas do setor, na ordem; no empate, a mais antiga primeiro. */
   perguntasAtivas(setorId: number): Promise<PerguntaDaPesquisa[]> {

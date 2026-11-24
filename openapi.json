@@ -33,6 +33,7 @@
           "ATENDIMENTO",
           "ENVIO"
         ],
+        "default": "ATENDIMENTO",
         "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10)."
       },
       "Canal": {
@@ -417,6 +418,62 @@
         ],
         "description": "Um ponto avaliado: um setor numa categoria."
       },
+      "ItemResposta": {
+        "type": "object",
+        "properties": {
+          "perguntaId": {
+            "type": "integer"
+          },
+          "perguntaTexto": {
+            "type": "string",
+            "description": "O texto da pergunta como o paciente leu, copiado no momento da resposta."
+          },
+          "categoria": {
+            "type": "string",
+            "description": "A categoria da pergunta no momento da resposta."
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoPergunta"
+          },
+          "valorNumero": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "A nota de 1 a 5, na escala; `null` nos outros tipos."
+          },
+          "valorTexto": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "`SIM` ou `NAO` no sim ou não, a opção escolhida na múltipla escolha e o texto no texto livre; `null` na escala."
+          },
+          "classificacao": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "NORMAL",
+              "BAIXA",
+              "BAIXISSIMA",
+              null
+            ],
+            "description": "A da nota de 1 a 5, com os limites da escala das configurações (no padrão, 1 é baixíssima e 2 e 3 são baixas); `null` nos outros tipos."
+          }
+        },
+        "required": [
+          "perguntaId",
+          "perguntaTexto",
+          "categoria",
+          "tipo",
+          "valorNumero",
+          "valorTexto",
+          "classificacao"
+        ],
+        "description": "Uma pergunta respondida, como o paciente a viu."
+      },
       "Meta": {
         "type": "object",
         "properties": {
@@ -470,6 +527,81 @@
           "total"
         ],
         "description": "O NPS de um setor no período, com o número de respostas."
+      },
+      "PedidoRetorno": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "O ID do pedido, o de `/contatos/{id}/revelar-telefone`."
+          },
+          "respostaId": {
+            "type": "integer",
+            "description": "A avaliação do pedido, a de `/respostas/{id}`."
+          },
+          "setor": {
+            "type": "string",
+            "description": "O nome do setor da avaliação, também se ele estiver desativado."
+          },
+          "dataAtendimento": {
+            "type": "string",
+            "format": "date",
+            "description": "O dia do atendimento, em AAAA-MM-DD."
+          },
+          "nps": {
+            "type": "integer",
+            "description": "A nota de 0 a 10.",
+            "example": 3
+          },
+          "classificacao": {
+            "$ref": "#/components/schemas/Classificacao"
+          },
+          "comentario": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "tipo": {
+                "$ref": "#/components/schemas/TipoComentario"
+              },
+              "texto": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "tipo",
+              "texto"
+            ],
+            "description": "O comentário da avaliação, se houver."
+          },
+          "telefoneMascarado": {
+            "type": "string",
+            "description": "Os 4 últimos dígitos depois de `••••`, montados sem decifrar o número. O número completo só sai em `POST /contatos/{id}/revelar-telefone`.",
+            "example": "•••• 0042"
+          },
+          "consentimentoEm": {
+            "type": "string",
+            "format": "date-time",
+            "description": "O instante em que o paciente deixou o telefone e autorizou o contato, em UTC."
+          },
+          "status": {
+            "$ref": "#/components/schemas/StatusRetorno"
+          }
+        },
+        "required": [
+          "id",
+          "respostaId",
+          "setor",
+          "dataAtendimento",
+          "nps",
+          "classificacao",
+          "comentario",
+          "telefoneMascarado",
+          "consentimentoEm",
+          "status"
+        ],
+        "description": "Um paciente que pediu para o hospital ligar."
       },
       "Perfil": {
         "type": "string",
@@ -759,6 +891,185 @@
         ],
         "description": "A avaliação gravada."
       },
+      "RespostaDetalhe": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "setorId": {
+            "type": "integer"
+          },
+          "setor": {
+            "type": "string",
+            "description": "O nome do setor, também se ele estiver desativado."
+          },
+          "canal": {
+            "$ref": "#/components/schemas/Canal"
+          },
+          "dataAtendimento": {
+            "type": "string",
+            "format": "date",
+            "description": "O dia do atendimento, em AAAA-MM-DD."
+          },
+          "turno": {
+            "type": "string",
+            "description": "O nome do turno do atendimento."
+          },
+          "nps": {
+            "type": "integer",
+            "description": "A nota de 0 a 10.",
+            "example": 9
+          },
+          "classificacao": {
+            "$ref": "#/components/schemas/Classificacao"
+          },
+          "enviadoEm": {
+            "type": "string",
+            "format": "date-time",
+            "description": "O instante do envio da avaliação, em UTC."
+          },
+          "temComentario": {
+            "type": "boolean",
+            "description": "O paciente deixou um comentário."
+          },
+          "pediuRetorno": {
+            "type": "boolean",
+            "description": "O paciente deixou o telefone para o hospital ligar."
+          },
+          "itens": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemResposta"
+            },
+            "description": "As perguntas, na ordem em que o paciente as viu."
+          },
+          "comentario": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "tipo": {
+                "$ref": "#/components/schemas/TipoComentario"
+              },
+              "texto": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "tipo",
+              "texto"
+            ],
+            "description": "O comentário, se houver."
+          },
+          "contato": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "integer",
+                "description": "O ID do pedido de retorno, o de `/contatos/{id}`."
+              },
+              "telefoneMascarado": {
+                "type": "string",
+                "description": "Os 4 últimos dígitos depois de `••••`, montados sem decifrar o número. O número completo só sai em `POST /contatos/{id}/revelar-telefone`.",
+                "example": "•••• 0042"
+              },
+              "status": {
+                "$ref": "#/components/schemas/StatusRetorno"
+              }
+            },
+            "required": [
+              "id",
+              "telefoneMascarado",
+              "status"
+            ],
+            "description": "O pedido de retorno, se o paciente deixou o telefone; o número vem mascarado."
+          }
+        },
+        "required": [
+          "id",
+          "setorId",
+          "setor",
+          "canal",
+          "dataAtendimento",
+          "turno",
+          "nps",
+          "classificacao",
+          "enviadoEm",
+          "temComentario",
+          "pediuRetorno",
+          "itens",
+          "comentario",
+          "contato"
+        ],
+        "description": "Uma avaliação inteira: o resumo, as perguntas, o comentário e o pedido de retorno."
+      },
+      "RespostaResumo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "setorId": {
+            "type": "integer"
+          },
+          "setor": {
+            "type": "string",
+            "description": "O nome do setor, também se ele estiver desativado."
+          },
+          "canal": {
+            "$ref": "#/components/schemas/Canal"
+          },
+          "dataAtendimento": {
+            "type": "string",
+            "format": "date",
+            "description": "O dia do atendimento, em AAAA-MM-DD."
+          },
+          "turno": {
+            "type": "string",
+            "description": "O nome do turno do atendimento."
+          },
+          "nps": {
+            "type": "integer",
+            "description": "A nota de 0 a 10.",
+            "example": 9
+          },
+          "classificacao": {
+            "$ref": "#/components/schemas/Classificacao"
+          },
+          "enviadoEm": {
+            "type": "string",
+            "format": "date-time",
+            "description": "O instante do envio da avaliação, em UTC."
+          },
+          "temComentario": {
+            "type": "boolean",
+            "description": "O paciente deixou um comentário."
+          },
+          "pediuRetorno": {
+            "type": "boolean",
+            "description": "O paciente deixou o telefone para o hospital ligar."
+          }
+        },
+        "required": [
+          "id",
+          "setorId",
+          "setor",
+          "canal",
+          "dataAtendimento",
+          "turno",
+          "nps",
+          "classificacao",
+          "enviadoEm",
+          "temComentario",
+          "pediuRetorno"
+        ],
+        "description": "Uma avaliação na lista de respostas."
+      },
       "Resumo": {
         "type": "object",
         "properties": {
@@ -942,6 +1253,16 @@
           "ativo"
         ],
         "description": "Unidade do hospital com pesquisa própria."
+      },
+      "StatusRetorno": {
+        "type": "string",
+        "enum": [
+          "NOVO",
+          "PENDENTE",
+          "EM_ATENDIMENTO",
+          "RESOLVIDO"
+        ],
+        "description": "Onde está o retorno ao paciente. No MVP, todo pedido fica `NOVO`; os outros status são do fluxo da fase 2."
       },
       "TipoComentario": {
         "type": "string",
@@ -5480,6 +5801,876 @@
                   "erro": {
                     "codigo": "NAO_ENCONTRADO",
                     "mensagem": "Usuário não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/respostas": {
+      "get": {
+        "tags": [
+          "Respostas"
+        ],
+        "summary": "Avaliações uma a uma, com filtros e ordenação",
+        "description": "Os filtros do painel são todos opcionais aqui: sem `inicio` ou sem `fim`, o período fica aberto daquele lado, e sem `base` vale o dia do atendimento. Além deles, a classificação e se a avaliação tem comentário ou pedido de retorno. 20 por página se o pedido não disser outro número; `meta.total` conta todas as páginas. Sem `ordenarPor` e `ordem`, do envio mais recente para o mais antigo. O telefone nunca aparece na lista. Exige `respostas:ver`: o Super Admin, o Gestor e a Ouvidoria; o Visualizador não tem. Super Admin e Ouvidoria veem todos os setores; o Gestor, só os seus.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": false,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": false,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": false,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Classificacao"
+            },
+            "required": false,
+            "description": "A pior entre a do NPS e a de cada nota de 1 a 5, com os limites das configurações (no padrão, NPS até 6 é baixa e até 2 é baixíssima; nota até 3 é baixa e 1 é baixíssima). O front escolhe a próxima tela por ela.",
+            "name": "classificacao",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "boolean",
+              "description": "`true`: só as avaliações com comentário; `false`: só as sem. Sem ele, todas."
+            },
+            "required": false,
+            "description": "`true`: só as avaliações com comentário; `false`: só as sem. Sem ele, todas.",
+            "name": "comComentario",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "boolean",
+              "description": "`true`: só as avaliações com pedido de retorno; `false`: só as sem. Sem ele, todas."
+            },
+            "required": false,
+            "description": "`true`: só as avaliações com pedido de retorno; `false`: só as sem. Sem ele, todas.",
+            "name": "comRetorno",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "pagina",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "porPagina",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "dataAtendimento",
+                "enviadoEm",
+                "nps"
+              ],
+              "default": "enviadoEm",
+              "description": "O dia do atendimento, o instante do envio ou o NPS. No empate, a de ID maior primeiro na ordem `desc` e a de ID menor na `asc`."
+            },
+            "required": false,
+            "description": "O dia do atendimento, o instante do envio ou o NPS. No empate, a de ID maior primeiro na ordem `desc` e a de ID menor na `asc`.",
+            "name": "ordenarPor",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "enum": [
+                "asc",
+                "desc"
+              ],
+              "default": "desc",
+              "description": "`asc`, do menor para o maior; `desc`, do maior para o menor."
+            },
+            "required": false,
+            "description": "`asc`, do menor para o maior; `desc`, do maior para o menor.",
+            "name": "ordem",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "As avaliações da página.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 845,
+                      "setorId": 1,
+                      "setor": "Pronto Atendimento",
+                      "canal": "TOTEM",
+                      "dataAtendimento": "2026-11-10",
+                      "turno": "Manhã",
+                      "nps": 3,
+                      "classificacao": "BAIXA",
+                      "enviadoEm": "2026-11-10T14:22:00.000Z",
+                      "temComentario": true,
+                      "pediuRetorno": true
+                    },
+                    {
+                      "id": 844,
+                      "setorId": 3,
+                      "setor": "Pediatria",
+                      "canal": "WEB",
+                      "dataAtendimento": "2026-11-09",
+                      "turno": "Tarde",
+                      "nps": 10,
+                      "classificacao": "NORMAL",
+                      "enviadoEm": "2026-11-10T12:05:00.000Z",
+                      "temComentario": false,
+                      "pediuRetorno": false
+                    }
+                  ],
+                  "meta": {
+                    "pagina": 1,
+                    "porPagina": 20,
+                    "total": 134
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/RespostaResumo"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId`, `canal`, `classificacao`, `comComentario`, `comRetorno`, `pagina`, `porPagina` (de 1 a 100), `ordenarPor` ou `ordem` fora dos valores aceitos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "fim",
+                        "mensagem": "A data final precisa ser igual ou depois da inicial"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `respostas:ver` (o Visualizador não a tem), num `setorId` que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/respostas/{id}": {
+      "get": {
+        "tags": [
+          "Respostas"
+        ],
+        "summary": "Uma avaliação inteira",
+        "description": "O resumo da lista, as perguntas como o paciente as viu (o texto, a categoria e o tipo do momento da resposta), a nota de cada uma, o comentário e o pedido de retorno. Cada nota de 1 a 5 vem classificada com os limites de agora. O telefone vem mascarado, com os 4 últimos dígitos; o número completo só sai em `POST /contatos/{id}/revelar-telefone`, com `contatos:ver`. Exige `respostas:ver`: o Super Admin, o Gestor e a Ouvidoria; o Visualizador não tem. Super Admin e Ouvidoria veem todos os setores; o Gestor, só os seus.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A avaliação.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "id": 845,
+                    "setorId": 1,
+                    "setor": "Pronto Atendimento",
+                    "canal": "TOTEM",
+                    "dataAtendimento": "2026-11-10",
+                    "turno": "Manhã",
+                    "nps": 3,
+                    "classificacao": "BAIXA",
+                    "enviadoEm": "2026-11-10T14:22:00.000Z",
+                    "temComentario": true,
+                    "pediuRetorno": true,
+                    "itens": [
+                      {
+                        "perguntaId": 12,
+                        "perguntaTexto": "Como você avalia o atendimento na recepção?",
+                        "categoria": "Recepção",
+                        "tipo": "ESCALA_1_5",
+                        "valorNumero": 2,
+                        "valorTexto": null,
+                        "classificacao": "BAIXA"
+                      },
+                      {
+                        "perguntaId": 13,
+                        "perguntaTexto": "Você foi chamado pelo nome?",
+                        "categoria": "Triagem",
+                        "tipo": "SIM_NAO",
+                        "valorNumero": null,
+                        "valorTexto": "NAO",
+                        "classificacao": null
+                      }
+                    ],
+                    "comentario": {
+                      "tipo": "RECLAMACAO",
+                      "texto": "Esperei mais de duas horas sem nenhuma informação."
+                    },
+                    "contato": {
+                      "id": 31,
+                      "telefoneMascarado": "•••• 0042",
+                      "status": "NOVO"
+                    }
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/RespostaDetalhe"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "contato.telefone",
+                        "mensagem": "Telefone com DDD, só números"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `respostas:ver` (o Visualizador não a tem), numa resposta de um setor que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: a resposta não existe.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Resposta não encontrada.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contatos": {
+      "get": {
+        "tags": [
+          "Pedidos de retorno"
+        ],
+        "summary": "Pacientes que pediram retorno",
+        "description": "Os pedidos de retorno, do consentimento mais recente para o mais antigo, com o telefone mascarado. O período (`inicio` e `fim`, incluídos e opcionais) é comparado com a `base`, como no painel: o dia do atendimento, se o pedido não disser outra coisa, ou o dia do envio em Brasília. 20 por página se o pedido não disser outro número; `meta.total` conta todas as páginas. Exige `contatos:ver`.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": false,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": false,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": false,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "pagina",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "required": false,
+            "name": "porPagina",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Os pedidos da página.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 31,
+                      "respostaId": 845,
+                      "setor": "Pronto Atendimento",
+                      "dataAtendimento": "2026-11-10",
+                      "nps": 3,
+                      "classificacao": "BAIXA",
+                      "comentario": {
+                        "tipo": "RECLAMACAO",
+                        "texto": "Esperei mais de duas horas sem nenhuma informação."
+                      },
+                      "telefoneMascarado": "•••• 0042",
+                      "consentimentoEm": "2026-11-10T14:23:10.000Z",
+                      "status": "NOVO"
+                    },
+                    {
+                      "id": 30,
+                      "respostaId": 838,
+                      "setor": "Ambulatório",
+                      "dataAtendimento": "2026-11-09",
+                      "nps": 1,
+                      "classificacao": "BAIXISSIMA",
+                      "comentario": null,
+                      "telefoneMascarado": "•••• 7788",
+                      "consentimentoEm": "2026-11-09T18:40:02.000Z",
+                      "status": "NOVO"
+                    }
+                  ],
+                  "meta": {
+                    "pagina": 1,
+                    "porPagina": 20,
+                    "total": 2
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PedidoRetorno"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `pagina` ou `porPagina` (de 1 a 100) fora dos valores aceitos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "fim",
+                        "mensagem": "A data final precisa ser igual ou depois da inicial"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `contatos:ver` (só o Super Admin e a Ouvidoria a têm; o Gestor e o Visualizador, não) ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/contatos/{id}/revelar-telefone": {
+      "post": {
+        "tags": [
+          "Pedidos de retorno"
+        ],
+        "summary": "Mostra o número completo, para ligar",
+        "description": "Decifra o telefone do pedido e registra na auditoria quem o viu e quando (`revelacao_de_telefone`), a cada vez que é chamado. A resposta não fica em cache (`Cache-Control: no-store`). Sem corpo. Exige `contatos:ver`.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "O número completo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "telefone": "51999990042"
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "telefone": {
+                          "type": "string",
+                          "description": "O número completo, só os dígitos, com o DDD (10 ou 11 dígitos).",
+                          "example": "51999990042"
+                        }
+                      },
+                      "required": [
+                        "telefone"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: dados inválidos, com um item em `detalhes` para cada campo errado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "contato.telefone",
+                        "mensagem": "Telefone com DDD, só números"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `contatos:ver` (só o Super Admin e a Ouvidoria a têm; o Gestor e o Visualizador, não) ou com a senha provisória, ou num pedido de um setor que não é da pessoa.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "`NAO_ENCONTRADO`: o pedido não existe.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_ENCONTRADO",
+                    "mensagem": "Pedido de retorno não encontrado.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }

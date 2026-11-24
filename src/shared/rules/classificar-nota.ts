@@ -41,3 +41,14 @@ export function classificarNota(
   )
   return CLASSIFICACOES[pior]
 }
+
+/**
+ * Classifica uma nota de 1 a 5 sozinha, com os limites da escala: a de cada item no detalhe de uma resposta.
+ * É a mesma conta que o `classificarNota` faz com cada nota.
+ */
+export function classificarNotaDaEscala(
+  nota: number,
+  limites: Pick<LimitesDeNota, 'escala_limite_baixa' | 'escala_limite_baixissima'>,
+): Classificacao {
+  return CLASSIFICACOES[gravidade(nota, limites.escala_limite_baixissima, limites.escala_limite_baixa)]
+}
