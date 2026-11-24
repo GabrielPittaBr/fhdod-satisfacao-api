@@ -17,6 +17,16 @@ export interface UsuarioAutenticado {
   setorIds: readonly number[] | null
 }
 
+/**
+ * A TV que abriu os indicadores, lida do banco pelo `tvToken` com o token do link e guardada em `req.tela`. A TV
+ * não tem login nem permissões: o token só abre os números gerais, de todos os setores.
+ */
+export interface TelaAutenticada {
+  id: number
+  /** Onde a tela fica: o nome que aparece no topo da TV. */
+  nome: string
+}
+
 /** O 403 de quem pede um setor que não é seu, no `setorScope` e nos services que conferem o setor do registro. */
 export const MENSAGEM_FORA_DO_SETOR = 'Você não tem acesso a este setor.'
 

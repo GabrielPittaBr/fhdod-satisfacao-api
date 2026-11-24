@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { FUSO_DE_BRASILIA } from '../../shared/constants/fuso-horario'
 import { TIPOS_DE_COMENTARIO } from '../../shared/constants/tipos-de-comentario'
+import { hojeEmBrasilia } from '../../shared/rules/calendario'
 import { CLASSIFICACOES } from '../../shared/rules/classificar-nota'
 import { telefoneValido } from '../../shared/rules/telefone'
 import { canalSchema } from '../../shared/http/canal'
@@ -29,11 +29,6 @@ export const RESPOSTAS_SIM_NAO = ['SIM', 'NAO'] as const
 
 /** O token de complemento vale por 30 minutos ("Autenticação e sessão", no plano). */
 export const VALIDADE_DO_COMPLEMENTO_MS = 30 * 60 * 1000
-
-/** Hoje no horário de Brasília, como `AAAA-MM-DD`: o dia do atendimento não pode passar dele. */
-export function hojeEmBrasilia(agora = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO_DE_BRASILIA }).format(agora)
-}
 
 /** O filtro de classificação fora dos valores aceitos, na lista de respostas. */
 export const MENSAGEM_CLASSIFICACAO = 'Escolha normal, baixa ou baixíssima'
