@@ -88,6 +88,8 @@ describe('log das requisições', () => {
     senha: 'senha-secreta-5',
     novaSenha: 'senha-secreta-6',
     senhaProvisoria: 'senha-secreta-9',
+    // O token de uma tela de TV, como sai na criação dela.
+    tela: { token: 'tv-secreto-10' },
     contato: { telefone: '51999990007' },
   }
 
@@ -132,6 +134,7 @@ describe('log das requisições', () => {
       'senha-secreta-5',
       'senha-secreta-6',
       'senha-secreta-9',
+      'tv-secreto-10',
       '51999990007',
     ]) {
       expect(texto()).not.toContain(segredo.replace('Bearer ', ''))
@@ -150,6 +153,7 @@ describe('log das requisições', () => {
         senha: '[oculto]',
         novaSenha: '[oculto]',
         senhaProvisoria: '[oculto]',
+        tela: { token: '[oculto]' },
         contato: { telefone: '[oculto]' },
       },
     })
