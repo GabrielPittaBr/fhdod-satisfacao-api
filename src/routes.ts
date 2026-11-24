@@ -3,6 +3,7 @@ import { criarAuthRoutes } from './modules/auth/auth.routes'
 import categoriasRoutes from './modules/categorias/categorias.routes'
 import contatosRoutes from './modules/contatos/contatos.routes'
 import dashboardRoutes from './modules/dashboard/dashboard.routes'
+import exportacaoRoutes from './modules/exportacao/exportacao.routes'
 import perguntasRoutes from './modules/perguntas/perguntas.routes'
 import { criarPesquisaRoutes } from './modules/pesquisa/pesquisa.routes'
 import respostasRoutes from './modules/respostas/respostas.routes'
@@ -28,6 +29,7 @@ export function criarRotas(): Router {
   routes.use(respostasRoutes)
   routes.use(contatosRoutes)
   routes.use(dashboardRoutes)
+  routes.use(exportacaoRoutes)
   routes.use(tvWallRoutes)
   return routes
 }
