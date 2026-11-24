@@ -1,7 +1,9 @@
 import { z } from 'zod'
+import { FUSO_DE_BRASILIA } from '../../shared/constants/fuso-horario'
 import { TIPOS_DE_COMENTARIO } from '../../shared/constants/tipos-de-comentario'
 import { CLASSIFICACOES } from '../../shared/rules/classificar-nota'
 import { telefoneValido } from '../../shared/rules/telefone'
+import { canalSchema } from '../../shared/http/canal'
 import { idNoCorpo, idParams } from '../../shared/http/parametros'
 import { tipoPerguntaSchema } from '../perguntas/perguntas.schemas'
 
@@ -30,7 +32,7 @@ export const VALIDADE_DO_COMPLEMENTO_MS = 30 * 60 * 1000
 
 /** Hoje no horário de Brasília, como `AAAA-MM-DD`: o dia do atendimento não pode passar dele. */
 export function hojeEmBrasilia(agora = new Date()): string {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Sao_Paulo' }).format(agora)
+  return new Intl.DateTimeFormat('en-CA', { timeZone: FUSO_DE_BRASILIA }).format(agora)
 }
 
 export const classificacaoSchema = z.enum(CLASSIFICACOES).meta({
@@ -131,10 +133,7 @@ const envioRespostaBody = z
         'chave devolve a avaliação já gravada, sem criar outra.',
       example: '4b7e0c1a-9d2f-4c11-8a35-1f0e6b2d7c90',
     }),
-    canal: z.enum(['WEB', 'TOTEM'], { error: 'Canal inválido' }).meta({
-      id: 'Canal',
-      description: '`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.',
-    }),
+    canal: canalSchema,
     dataAtendimento: z.iso
       .date({ error: 'Informe a data do atendimento' })
       .refine((data) => data <= hojeEmBrasilia(), MENSAGEM_DATA_FUTURA)
