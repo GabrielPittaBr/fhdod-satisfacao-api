@@ -50,6 +50,11 @@ const variaveis = z.object({
   ACCESS_TOKEN_TTL: duracaoEmSegundos.default(15 * 60),
   /** Validade do refresh token, em dias. Cada uso troca o token e conta o prazo de novo. */
   REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(7),
+  /**
+   * Chave da cifra dos telefones (AES-256-GCM): 32 bytes em base64. Quem a tem lê os telefones de um dump do
+   * banco; sem ela, os telefones gravados não se leem mais.
+   */
+  ENCRYPTION_KEY: z.base64().refine((valor) => Buffer.from(valor, 'base64').length === 32),
   /** IPs fora do limite de envios da pesquisa pública, como o do hospital, por onde saem os totens. */
   RATE_LIMIT_ALLOWLIST: z
     .string()
@@ -83,6 +88,7 @@ const COMO_PREENCHER: Record<Variavel, string> = {
     'use um texto aleatório de pelo menos 32 caracteres; o .env.example mostra como gerar um',
   ACCESS_TOKEN_TTL: 'use um tempo como 15m, 900s ou 1h',
   REFRESH_TOKEN_TTL_DAYS: 'use um número de dias de 1 a 365, como 7',
+  ENCRYPTION_KEY: 'use 32 bytes aleatórios em base64 (44 caracteres); o .env.example mostra como gerar',
   RATE_LIMIT_ALLOWLIST: 'use IPs separados por vírgula, como 203.0.113.10, ou deixe vazia',
 }
 

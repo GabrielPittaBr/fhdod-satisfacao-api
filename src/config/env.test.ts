@@ -6,6 +6,12 @@ const validas = {
   DATABASE_URL: 'postgresql://app:senha-do-banco@postgres:5432/satisfacao',
   CORS_ORIGIN: 'https://pesquisa.exemplo.com.br',
   JWT_ACCESS_SECRET: 'segredo-de-exemplo-com-mais-de-32-caracteres',
+  ENCRYPTION_KEY: Buffer.from('chave-de-exemplo-com-32-bytes!!!').toString('base64'),
+}
+
+/** Uma chave de `bytes` bytes, em base64. */
+function chaveDe(bytes: number) {
+  return Buffer.alloc(bytes, 7).toString('base64')
 }
 
 function mensagemDoErro(fonte: Record<string, string | undefined>) {
@@ -30,6 +36,7 @@ describe('lerEnv', () => {
       JWT_ACCESS_SECRET: validas.JWT_ACCESS_SECRET,
       ACCESS_TOKEN_TTL: 900,
       REFRESH_TOKEN_TTL_DAYS: 7,
+      ENCRYPTION_KEY: validas.ENCRYPTION_KEY,
       RATE_LIMIT_ALLOWLIST: [],
     })
   })
@@ -59,6 +66,21 @@ describe('lerEnv', () => {
     expect(lerEnv({ ...validas, NODE_ENV: 'production', DOCS_ENABLED: '' }).DOCS_ENABLED).toBe(false)
   })
 
+  it('aceita na chave dos telefones só 32 bytes em base64', () => {
+    expect(lerEnv({ ...validas, ENCRYPTION_KEY: chaveDe(32) }).ENCRYPTION_KEY).toBe(chaveDe(32))
+    for (const invalida of [
+      chaveDe(16),
+      chaveDe(31),
+      chaveDe(33),
+      chaveDe(32).slice(0, -1),
+      'chave sem base64 com espaços e acentuação!!',
+    ]) {
+      expect(mensagemDoErro({ ...validas, ENCRYPTION_KEY: invalida })).toContain(
+        'ENCRYPTION_KEY está inválida',
+      )
+    }
+  })
+
   it('converte a porta e separa as origens do CORS', () => {
     const env = lerEnv({
       ...validas,
@@ -79,6 +101,7 @@ describe('lerEnv', () => {
     expect(mensagem).toContain('DATABASE_URL não foi definida')
     expect(mensagem).toContain('CORS_ORIGIN não foi definida')
     expect(mensagem).toContain('JWT_ACCESS_SECRET não foi definida')
+    expect(mensagem).toContain('ENCRYPTION_KEY não foi definida')
     expect(mensagem).not.toContain('NODE_ENV')
     expect(mensagem).toContain('.env.example')
   })
@@ -94,6 +117,7 @@ describe('lerEnv', () => {
       JWT_ACCESS_SECRET: 'curto-demais-31-caracteres-xxxx',
       ACCESS_TOKEN_TTL: '15 minutos',
       REFRESH_TOKEN_TTL_DAYS: '0',
+      ENCRYPTION_KEY: 'chave-secreta-curta',
     })
 
     for (const variavel of [
@@ -106,10 +130,12 @@ describe('lerEnv', () => {
       'JWT_ACCESS_SECRET',
       'ACCESS_TOKEN_TTL',
       'REFRESH_TOKEN_TTL_DAYS',
+      'ENCRYPTION_KEY',
     ]) {
       expect(mensagem).toContain(`${variavel} está inválida`)
     }
     expect(mensagem).not.toContain('senha-secreta')
     expect(mensagem).not.toContain('curto-demais')
+    expect(mensagem).not.toContain('chave-secreta')
   })
 })
