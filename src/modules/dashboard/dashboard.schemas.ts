@@ -6,6 +6,7 @@ import {
   periodoValido,
 } from '../../shared/http/filtros-do-painel'
 import { paginacaoSchema } from '../../shared/http/pagination'
+import { diaDoCalendario, segundaDaSemana } from '../../shared/rules/calendario'
 import { NOTA_BOA_A_PARTIR_DE } from '../../shared/rules/notas-da-escala'
 import { MINIMO_DE_NOTAS_DO_PONTO, TAMANHO_DO_RANKING } from '../../shared/rules/ranking-de-pontos'
 import { classificacaoSchema, tipoComentarioSchema } from '../pesquisa/pesquisa.schemas'
@@ -180,18 +181,6 @@ export const granularidadeSchema = z.enum(GRANULARIDADES, { error: MENSAGEM_GRAN
   id: 'Granularidade',
   description: 'Um ponto por dia, por semana (de segunda a domingo) ou por mês.',
 })
-
-/** `AAAA-MM-DD` em dias desde 1970-01-01, sem fuso: só a data conta. */
-function diaDoCalendario(data: string): number {
-  const [ano = 0, mes = 1, dia = 1] = data.split('-').map(Number)
-  return Date.UTC(ano, mes - 1, dia) / 86_400_000
-}
-
-/** A segunda-feira da semana de um dia, em dias desde 1970-01-01 (que foi uma quinta). */
-function segundaDaSemana(dia: number): number {
-  // O `%` do JavaScript é negativo antes de 1970: o `+ 7` o traz de volta para 0 a 6.
-  return dia - ((((dia + 3) % 7) + 7) % 7)
-}
 
 /** Quantos pontos a evolução tem de `inicio` a `fim`, contando o período de cada ponta inteiro. */
 export function quantidadeDePeriodos(inicio: string, fim: string, granularidade: Granularidade): number {
