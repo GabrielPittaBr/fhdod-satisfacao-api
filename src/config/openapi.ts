@@ -69,7 +69,7 @@ const DESCRICAO = `Contrato da API do Sistema de Satisfação Hospitalar da FHDO
 - Erro: sempre o componente \`Erro\`, \`{ "erro": { "codigo", "mensagem", "detalhes", "requestId" } }\`. A \`mensagem\` é escrita para quem está na tela.
 - Toda resposta traz o cabeçalho \`X-Request-Id\`, o mesmo \`requestId\` dos erros e do log.
 - Rotas do painel: token de acesso em \`Authorization: Bearer <token>\`. Sem ele, vencido ou com o usuário inativo, 401 \`NAO_AUTENTICADO\`; sem a permissão ou fora dos setores da pessoa, 403 \`SEM_PERMISSAO\`. Com a senha provisória, as rotas do painel respondem 403 até a troca em \`/auth/senha\`; \`/auth/me\` funciona.
-- Exportações (\`/exportacoes/*.xlsx\`): o corpo é o arquivo, e o nome vem no cabeçalho \`Content-Disposition\`. Um erro antes de o arquivo começar a sair vem no formato padrão, em JSON.
+- Exportações (\`/exportacoes/*.xlsx\` e \`/exportacoes/resumo.pdf\`): o corpo é o arquivo, e o nome vem no cabeçalho \`Content-Disposition\`. Um erro antes de o arquivo começar a sair vem no formato padrão, em JSON.
 - Rotas \`/publico\`: a pesquisa do paciente, sem login. O complemento da avaliação leva o token devolvido pelo envio no cabeçalho \`X-Complemento-Token\`.
 - Rota \`/tv/indicadores\`: a TV Wall, sem login, com o token do link da tela no cabeçalho \`X-Tv-Token\`. Sem ele, com um que não existe ou de uma tela desativada, 401 \`NAO_AUTENTICADO\`.`
 

@@ -6,14 +6,11 @@ import { formatarTelefone } from '../../shared/rules/telefone'
 import { temPermissao, type UsuarioAutenticado } from '../../shared/security/acesso'
 import { decifrar } from '../../shared/security/crypto'
 import { dashboardService } from '../dashboard/dashboard.service'
-import {
-  escreverPlanilhaDasRespostas,
-  escreverPlanilhaDoResumo,
-  type DadosDoResumo,
-  type FiltrosDoArquivo,
-} from './exportacao.planilhas'
+import { enviarPdf, gerarPdfDoResumo } from './exportacao.pdf'
+import { escreverPlanilhaDasRespostas, escreverPlanilhaDoResumo } from './exportacao.planilhas'
 import { exportacaoRepository } from './exportacao.repository'
-import { nomeDaPlanilha, TIPO_XLSX } from './exportacao.schemas'
+import type { DadosDoResumo, FiltrosDoArquivo } from './exportacao.resumo'
+import { nomeDoArquivo, TIPO_PDF, TIPO_XLSX } from './exportacao.schemas'
 
 /** Respostas lidas do banco de cada vez nas abas do arquivo detalhado: a memória não cresce com o período. */
 export const RESPOSTAS_POR_LOTE = 500
@@ -21,6 +18,7 @@ export const RESPOSTAS_POR_LOTE = 500
 /** As ações das exportações na auditoria. */
 export const ACOES_DA_EXPORTACAO = {
   resumo: 'exportacao_de_resumo',
+  resumoEmPdf: 'exportacao_de_resumo_em_pdf',
   respostas: 'exportacao_de_respostas',
 } as const
 
@@ -115,9 +113,33 @@ export const exportacaoService = {
       comTelefones: false,
     })
     return {
-      nome: nomeDaPlanilha('resumo', filtros),
+      nome: nomeDoArquivo('resumo', filtros, 'xlsx'),
       tipo: TIPO_XLSX,
       escrever: (saida) => escreverPlanilhaDoResumo(saida, resumo),
+    }
+  },
+
+  /**
+   * O resumo em PDF, com o mesmo conteúdo da planilha do resumo, em no máximo duas páginas. O PDF é montado antes
+   * da linha da auditoria: se ele não sair, nada fica registrado.
+   */
+  async resumoEmPdf(
+    filtros: FiltrosDoDashboard,
+    usuario: UsuarioAutenticado,
+    ip: string | null,
+  ): Promise<ArquivoParaBaixar> {
+    const resumo = await dadosDoResumo(filtros, usuario)
+    const documento = await gerarPdfDoResumo(resumo)
+    const autor: Autor = { usuarioId: usuario.id, ip }
+    await exportacaoRepository.registrarExportacao(autor, ACOES_DA_EXPORTACAO.resumoEmPdf, {
+      filtros: filtrosDaAuditoria(filtros),
+      respostas: resumo.indicadores.total,
+      comTelefones: false,
+    })
+    return {
+      nome: nomeDoArquivo('resumo', filtros, 'pdf'),
+      tipo: TIPO_PDF,
+      escrever: (saida) => enviarPdf(documento, saida),
     }
   },
 
@@ -154,7 +176,7 @@ export const exportacaoService = {
     })
 
     return {
-      nome: nomeDaPlanilha('respostas', filtros),
+      nome: nomeDoArquivo('respostas', filtros, 'xlsx'),
       tipo: TIPO_XLSX,
       escrever: (saida) =>
         escreverPlanilhaDasRespostas(saida, {

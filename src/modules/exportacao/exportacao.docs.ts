@@ -5,8 +5,11 @@ import { MENSAGEM_FORA_DO_SETOR } from '../../shared/security/acesso'
 import {
   exportarRespostas,
   exportarResumo,
+  exportarResumoEmPdf,
   LINHAS_POR_ABA,
-  nomeDaPlanilha,
+  nomeDoArquivo,
+  PAGINAS_DO_PDF,
+  TIPO_PDF,
   TIPO_XLSX,
 } from './exportacao.schemas'
 
@@ -46,7 +49,40 @@ export function documentarExportacao(registry: OpenAPIRegistry) {
     security: EXIGE_LOGIN,
     requisicao: exportarResumo,
     respostas: {
-      200: respostaArquivo('A planilha do resumo.', TIPO_XLSX, nomeDaPlanilha('resumo', PERIODO_DE_EXEMPLO)),
+      200: respostaArquivo(
+        'A planilha do resumo.',
+        TIPO_XLSX,
+        nomeDoArquivo('resumo', PERIODO_DE_EXEMPLO, 'xlsx'),
+      ),
+    },
+    erros: [
+      FILTROS_INVALIDOS,
+      'NAO_AUTENTICADO',
+      {
+        codigo: 'SEM_PERMISSAO',
+        quando:
+          'sem a permissão `exportacao:resumo`, num `setorId` que não é da pessoa ou com a senha provisória.',
+        mensagem: MENSAGEM_FORA_DO_SETOR,
+      },
+    ],
+  })
+
+  documentarRota(registry, {
+    method: 'get',
+    path: '/api/v1/exportacoes/resumo.pdf',
+    tags: TAGS,
+    summary: 'Resumo dos indicadores em PDF',
+    description:
+      `O mesmo conteúdo do resumo em Excel, em no máximo ${PAGINAS_DO_PDF} páginas A4, para imprimir ou mandar à ` +
+      'direção: quem gerou e quando, os filtros aplicados, os indicadores, o NPS por setor e as médias por ' +
+      'categoria, com os números escritos como no Brasil (4,3, 1.234 e 67%). Se as tabelas não couberem nem com a ' +
+      'letra menor, mostram as primeiras e as últimas linhas, com o aviso de quantas ficaram de fora. Sem gráficos. ' +
+      'Gerado no servidor, sem navegador, e enviado na hora, com o nome no `Content-Disposition`; cada exportação ' +
+      `vai para a auditoria. Os quatro perfis têm \`exportacao:resumo\`. ${FILTROS}`,
+    security: EXIGE_LOGIN,
+    requisicao: exportarResumoEmPdf,
+    respostas: {
+      200: respostaArquivo('O PDF do resumo.', TIPO_PDF, nomeDoArquivo('resumo', PERIODO_DE_EXEMPLO, 'pdf')),
     },
     erros: [
       FILTROS_INVALIDOS,
@@ -78,7 +114,7 @@ export function documentarExportacao(registry: OpenAPIRegistry) {
       200: respostaArquivo(
         'A planilha das respostas.',
         TIPO_XLSX,
-        nomeDaPlanilha('respostas', PERIODO_DE_EXEMPLO),
+        nomeDoArquivo('respostas', PERIODO_DE_EXEMPLO, 'xlsx'),
       ),
     },
     erros: [

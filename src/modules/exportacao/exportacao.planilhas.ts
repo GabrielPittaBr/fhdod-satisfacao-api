@@ -1,7 +1,6 @@
 import ExcelJS from 'exceljs'
 import { finished } from 'node:stream/promises'
 import {
-  ROTULO_BASE,
   ROTULO_CANAL,
   ROTULO_CLASSIFICACAO,
   ROTULO_COMENTARIO,
@@ -9,12 +8,20 @@ import {
   ROTULO_TIPO_PERGUNTA,
 } from '../../shared/constants/rotulos'
 import { DownloadInterrompido, type Saida } from '../../shared/http/download'
-import type { FiltrosDoDashboard } from '../../shared/http/filtros-do-painel'
-import { DETRATOR_ATE, PROMOTOR_A_PARTIR_DE } from '../../shared/rules/calcular-nps'
 import { horarioDeBrasilia } from '../../shared/rules/calendario'
-import { NOTA_BOA_A_PARTIR_DE } from '../../shared/rules/notas-da-escala'
-import type { IndicadorCategoria, NpsSetor, Resumo } from '../dashboard/dashboard.schemas'
 import type { ComentarioExportado, ItemExportado, RespostaExportada } from './exportacao.repository'
+import {
+  AUTOR_DO_ARQUIVO,
+  descreverFiltros,
+  indicadoresDoResumo,
+  linhaDaCategoria,
+  linhaDoSetor,
+  SEM_DADOS,
+  TEXTOS_DO_RESUMO,
+  type DadosDoResumo,
+  type Numero,
+  type TipoDeNumero,
+} from './exportacao.resumo'
 import { LINHAS_POR_ABA } from './exportacao.schemas'
 
 // As planilhas da exportação, escritas direto na resposta pelo `exceljs`, sem montar o arquivo na memória. As
@@ -32,10 +39,13 @@ export const FORMATOS = {
   percentual: '0%',
 } as const
 
-/** No lugar de um número que não existe, como o NPS de um período sem respostas. */
-export const SEM_DADOS = '—'
-
-const AUTOR_DO_ARQUIVO = 'Sistema de Satisfação Hospitalar da FHDOD'
+/** O formato de exibição de cada tipo de número do resumo. */
+const FORMATO_DO_TIPO: Record<TipoDeNumero, string> = {
+  inteiro: FORMATOS.inteiro,
+  contagem: FORMATOS.contagem,
+  media: FORMATOS.media,
+  percentual: FORMATOS.percentual,
+}
 
 /** O verde-petróleo do painel, bem claro, no fundo dos cabeçalhos. */
 const FUNDO_DO_CABECALHO: ExcelJS.Fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFDCEBEB' } }
@@ -47,73 +57,11 @@ type Livro = ExcelJS.stream.xlsx.WorkbookWriter
 
 type Valor = string | number | Date | null
 
-// ---------- Filtros e resumo ----------
-
-/** Os filtros do arquivo, com os nomes que a planilha mostra no lugar dos IDs. */
-export interface FiltrosDoArquivo extends FiltrosDoDashboard {
-  /** O nome do setor do `setorId`, ou `null` se nenhum setor tem esse ID. */
-  setor?: string | null
-  /** O nome do turno do `turnoId`, ou `null` se nenhum turno tem esse ID. */
-  turno?: string | null
-  /**
-   * Sem `setorId`, os setores de quem exporta, em ordem alfabética, ou `null` quando a pessoa enxerga todos (Super
-   * Admin e Ouvidoria). Com `setorId`, não é lido.
-   */
-  setoresDoEscopo: string[] | null
-}
-
-/** O que a aba Resumo mostra: os filtros, quem gerou e quando, e os números do dashboard com os mesmos filtros. */
-export interface DadosDoResumo {
-  filtros: FiltrosDoArquivo
-  indicadores: Resumo
-  setores: NpsSetor[]
-  categorias: IndicadorCategoria[]
-  geradoEm: Date
-  geradoPor: string
-}
-
-/** `AAAA-MM-DD` como se escreve no Brasil: 01/11/2026. */
-function dataBrasileira(data: string): string {
-  const [ano, mes, dia] = data.split('-')
-  return `${dia}/${mes}/${ano}`
-}
+// ---------- Resumo ----------
 
 /** `AAAA-MM-DD` como data da planilha: a meia-noite em UTC, que o Excel mostra como o próprio dia. */
 function dataDaPlanilha(data: string): Date {
   return new Date(`${data}T00:00:00Z`)
-}
-
-function descreverSetor({ setorId, setor, setoresDoEscopo }: FiltrosDoArquivo): string {
-  if (setorId !== undefined) return setor ?? `Nenhum setor tem o código ${setorId}`
-  if (setoresDoEscopo === null) return 'Todos os setores'
-  if (setoresDoEscopo.length === 0) return 'Nenhum: a sua conta ainda não tem setores'
-  return `Os seus setores: ${setoresDoEscopo.join(', ')}`
-}
-
-/** Os filtros como a planilha os mostra, um por linha: o rótulo e o valor. */
-export function descreverFiltros(filtros: FiltrosDoArquivo): [string, string][] {
-  const { inicio, fim, base, turnoId, turno, canal } = filtros
-  return [
-    ['Período', `${dataBrasileira(inicio)} a ${dataBrasileira(fim)}`],
-    ['Data considerada', ROTULO_BASE[base]],
-    ['Setor', descreverSetor(filtros)],
-    ['Turno', turnoId === undefined ? 'Todos os turnos' : (turno ?? `Nenhum turno tem o código ${turnoId}`)],
-    ['Canal', canal === undefined ? 'Todos os canais' : ROTULO_CANAL[canal]],
-  ]
-}
-
-/** Os números do resumo, com o rótulo e o formato de cada um. */
-function indicadoresDoResumo(resumo: Resumo): [string, number | null, string][] {
-  return [
-    ['NPS', resumo.nps, FORMATOS.inteiro],
-    ['Respostas', resumo.total, FORMATOS.contagem],
-    [`Promotores (notas ${PROMOTOR_A_PARTIR_DE} e 10)`, resumo.promotores, FORMATOS.contagem],
-    [`Neutros (notas ${DETRATOR_ATE + 1} e ${PROMOTOR_A_PARTIR_DE - 1})`, resumo.neutros, FORMATOS.contagem],
-    [`Detratores (notas 0 a ${DETRATOR_ATE})`, resumo.detratores, FORMATOS.contagem],
-    ['Avaliações com nota baixa ou baixíssima', resumo.notasBaixas, FORMATOS.contagem],
-    ['Avaliações com nota baixíssima', resumo.baixissimas, FORMATOS.contagem],
-    ['Média das notas de 1 a 5', resumo.mediaEscala, FORMATOS.media],
-  ]
 }
 
 function destacarCabecalho(linha: ExcelJS.Row): void {
@@ -140,47 +88,44 @@ function escreverResumo(
     nova.commit()
   }
   const titulo = (texto: string) => linha([texto], [], true)
-  const cabecalho = (titulos: string[]) => {
-    const nova = aba.addRow(titulos)
+  /** O texto e os números de uma linha; o número que não existe vira `SEM_DADOS`, sem formato. */
+  const linhaDeNumeros = ([texto, ...numeros]: [string, ...Numero[]]) =>
+    linha(
+      [texto, ...numeros.map(({ valor }) => valor ?? SEM_DADOS)],
+      [undefined, ...numeros.map(({ valor, tipo }) => (valor === null ? undefined : FORMATO_DO_TIPO[tipo]))],
+    )
+  const cabecalho = (titulos: readonly string[]) => {
+    const nova = aba.addRow([...titulos])
     destacarCabecalho(nova)
     nova.commit()
   }
   const vazia = () => aba.addRow([]).commit()
 
-  const principal = aba.addRow(['Pesquisa de satisfação: resumo dos indicadores'])
+  const principal = aba.addRow([TEXTOS_DO_RESUMO.titulo])
   principal.font = { bold: true, size: 14 }
   principal.commit()
-  linha(['Gerado em', horarioDeBrasilia(geradoEm)], [undefined, FORMATOS.dataEHora])
-  linha(['Gerado por', geradoPor])
+  linha([TEXTOS_DO_RESUMO.geradoEm, horarioDeBrasilia(geradoEm)], [undefined, FORMATOS.dataEHora])
+  linha([TEXTOS_DO_RESUMO.geradoPor, geradoPor])
   vazia()
 
-  titulo('Filtros aplicados')
+  titulo(TEXTOS_DO_RESUMO.filtros)
   for (const [rotulo, valor] of descreverFiltros(filtros)) linha([rotulo, valor])
   vazia()
 
-  titulo('Indicadores')
-  for (const [rotulo, valor, formato] of indicadoresDoResumo(indicadores)) {
-    linha([rotulo, valor ?? SEM_DADOS], [undefined, valor === null ? undefined : formato])
-  }
+  titulo(TEXTOS_DO_RESUMO.indicadores)
+  for (const [rotulo, numero] of indicadoresDoResumo(indicadores)) linhaDeNumeros([rotulo, numero])
   vazia()
 
-  titulo('NPS por setor')
-  cabecalho(['Setor', 'NPS', 'Respostas'])
-  for (const { setor, nps, total } of setores) {
-    linha([setor, nps, total], [undefined, FORMATOS.inteiro, FORMATOS.contagem])
-  }
-  if (setores.length === 0) linha(['Nenhuma resposta no período.'])
+  titulo(TEXTOS_DO_RESUMO.setores)
+  cabecalho(TEXTOS_DO_RESUMO.cabecalhoDosSetores)
+  for (const setor of setores) linhaDeNumeros(linhaDoSetor(setor))
+  if (setores.length === 0) linha([TEXTOS_DO_RESUMO.semSetores])
   vazia()
 
-  titulo('Médias por categoria')
-  cabecalho(['Categoria', 'Média (1 a 5)', `% de notas ${NOTA_BOA_A_PARTIR_DE} e 5`, 'Notas'])
-  for (const { categoria, media, percentual45, total } of categorias) {
-    linha(
-      [categoria, media, percentual45 === null ? null : percentual45 / 100, total],
-      [undefined, FORMATOS.media, FORMATOS.percentual, FORMATOS.contagem],
-    )
-  }
-  if (categorias.length === 0) linha(['Nenhuma nota de 1 a 5 no período.'])
+  titulo(TEXTOS_DO_RESUMO.categorias)
+  cabecalho(TEXTOS_DO_RESUMO.cabecalhoDasCategorias)
+  for (const categoria of categorias) linhaDeNumeros(linhaDaCategoria(categoria))
+  if (categorias.length === 0) linha([TEXTOS_DO_RESUMO.semCategorias])
 
   aba.commit()
 }

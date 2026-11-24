@@ -3,7 +3,7 @@
   "info": {
     "title": "API de Satisfação Hospitalar da FHDOD",
     "version": "0.1.0",
-    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log.\n- Rotas do painel: token de acesso em `Authorization: Bearer <token>`. Sem ele, vencido ou com o usuário inativo, 401 `NAO_AUTENTICADO`; sem a permissão ou fora dos setores da pessoa, 403 `SEM_PERMISSAO`. Com a senha provisória, as rotas do painel respondem 403 até a troca em `/auth/senha`; `/auth/me` funciona.\n- Exportações (`/exportacoes/*.xlsx`): o corpo é o arquivo, e o nome vem no cabeçalho `Content-Disposition`. Um erro antes de o arquivo começar a sair vem no formato padrão, em JSON.\n- Rotas `/publico`: a pesquisa do paciente, sem login. O complemento da avaliação leva o token devolvido pelo envio no cabeçalho `X-Complemento-Token`.\n- Rota `/tv/indicadores`: a TV Wall, sem login, com o token do link da tela no cabeçalho `X-Tv-Token`. Sem ele, com um que não existe ou de uma tela desativada, 401 `NAO_AUTENTICADO`."
+    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log.\n- Rotas do painel: token de acesso em `Authorization: Bearer <token>`. Sem ele, vencido ou com o usuário inativo, 401 `NAO_AUTENTICADO`; sem a permissão ou fora dos setores da pessoa, 403 `SEM_PERMISSAO`. Com a senha provisória, as rotas do painel respondem 403 até a troca em `/auth/senha`; `/auth/me` funciona.\n- Exportações (`/exportacoes/*.xlsx` e `/exportacoes/resumo.pdf`): o corpo é o arquivo, e o nome vem no cabeçalho `Content-Disposition`. Um erro antes de o arquivo começar a sair vem no formato padrão, em JSON.\n- Rotas `/publico`: a pesquisa do paciente, sem login. O complemento da avaliação leva o token devolvido pelo envio no cabeçalho `X-Complemento-Token`.\n- Rota `/tv/indicadores`: a TV Wall, sem login, com o token do link da tela no cabeçalho `X-Tv-Token`. Sem ele, com um que não existe ou de uma tela desativada, 401 `NAO_AUTENTICADO`."
   },
   "components": {
     "securitySchemes": {
@@ -8266,6 +8266,196 @@
             },
             "content": {
               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: sem `inicio`, `fim` ou `base`; data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId` ou `canal` fora dos valores aceitos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "fim",
+                        "mensagem": "A data final precisa ser igual ou depois da inicial"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `exportacao:resumo`, num `setorId` que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/exportacoes/resumo.pdf": {
+      "get": {
+        "tags": [
+          "Exportações"
+        ],
+        "summary": "Resumo dos indicadores em PDF",
+        "description": "O mesmo conteúdo do resumo em Excel, em no máximo 2 páginas A4, para imprimir ou mandar à direção: quem gerou e quando, os filtros aplicados, os indicadores, o NPS por setor e as médias por categoria, com os números escritos como no Brasil (4,3, 1.234 e 67%). Se as tabelas não couberem nem com a letra menor, mostram as primeiras e as últimas linhas, com o aviso de quantas ficaram de fora. Sem gráficos. Gerado no servidor, sem navegador, e enviado na hora, com o nome no `Content-Disposition`; cada exportação vai para a auditoria. Os quatro perfis têm `exportacao:resumo`. Os filtros e o escopo são os do dashboard: o período (`inicio` e `fim`, incluídos) comparado com a `base`, o setor, o turno e o canal. Super Admin e Ouvidoria exportam todos os setores; o Gestor e o Visualizador, só os seus, mesmo sem pedir um setor.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": true,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": true,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": true,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "O PDF do resumo.",
+            "headers": {
+              "Content-Disposition": {
+                "description": "O nome com que o arquivo deve ser salvo.",
+                "schema": {
+                  "type": "string",
+                  "example": "attachment; filename=fhdod-resumo-2026-11-01-a-2026-11-30.pdf"
+                }
+              },
+              "Cache-Control": {
+                "description": "O arquivo pode ter dados pessoais: não fica guardado em cache.",
+                "schema": {
+                  "type": "string",
+                  "example": "no-store"
+                }
+              }
+            },
+            "content": {
+              "application/pdf": {
                 "schema": {
                   "type": "string",
                   "format": "binary"
