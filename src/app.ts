@@ -36,7 +36,9 @@ export function createApp({
   app.use(requestId)
   app.use(httpLogger(logger))
   app.use(helmet())
-  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true }))
+  // O `Content-Disposition` traz o nome dos arquivos exportados; sem expô-lo, o front de outra origem (o de
+  // desenvolvimento, na 5173) não consegue lê-lo. Em produção, front e API ficam no mesmo domínio.
+  app.use(cors({ origin: env.CORS_ORIGIN, credentials: true, exposedHeaders: ['Content-Disposition'] }))
   app.use(express.json({ limit: '100kb' }))
   app.use(cookieParser())
 

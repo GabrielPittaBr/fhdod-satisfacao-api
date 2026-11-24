@@ -14,7 +14,8 @@ function nivel(req: IncomingMessage, res: ServerResponse, erro?: Error) {
   const rota = caminho((req as Request).originalUrl ?? req.url)
   // O Docker e o monitor chamam o /api/health o tempo todo; só a falha dele interessa no log.
   if (rota === ROTA_DE_SAUDE && !erro && res.statusCode < 400) return 'silent'
-  if (erro || res.statusCode >= 500) return 'error'
+  // O `res.err` conta também com o 200: um download que falha no meio já mandou o status, e é erro do mesmo jeito.
+  if (erro || res.err || res.statusCode >= 500) return 'error'
   if (res.statusCode >= 400) return 'warn'
   return 'info'
 }
