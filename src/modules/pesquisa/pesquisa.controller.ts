@@ -1,7 +1,12 @@
 import type { Request, Response } from 'express'
 import { validados } from '../../middlewares/validate'
-import { responder } from '../../shared/http/respond'
-import { abrirPesquisa, enviarResposta } from './pesquisa.schemas'
+import { responder, responderSemConteudo } from '../../shared/http/respond'
+import {
+  abrirPesquisa,
+  CABECALHO_DO_COMPLEMENTO,
+  complementarResposta,
+  enviarResposta,
+} from './pesquisa.schemas'
 import { pesquisaService } from './pesquisa.service'
 
 export const pesquisaController = {
@@ -16,5 +21,11 @@ export const pesquisaController = {
     // O token de complemento só aparece nesta resposta, que não fica em cache.
     res.set('Cache-Control', 'no-store')
     responder(res, criada, 201)
+  },
+
+  async complementar(req: Request, res: Response) {
+    const { params, body } = validados(req, complementarResposta)
+    await pesquisaService.complementar(params.id, req.get(CABECALHO_DO_COMPLEMENTO), body)
+    responderSemConteudo(res)
   },
 }

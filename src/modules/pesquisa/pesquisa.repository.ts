@@ -22,6 +22,15 @@ const CAMPOS_DA_GRAVADA = {
 
 export type RespostaGravada = Prisma.RespostaGetPayload<{ select: typeof CAMPOS_DA_GRAVADA }>
 
+/** O que o complemento grava: o comentário, o pedido de retorno (com o telefone já cifrado) ou os dois. */
+export interface NovoComplemento {
+  comentario?: Pick<Prisma.ComentarioUncheckedCreateInput, 'tipo' | 'texto'>
+  contato?: Pick<
+    Prisma.ContatoRetornoUncheckedCreateInput,
+    'telefoneCifrado' | 'telefoneFinal' | 'consentimentoEm'
+  >
+}
+
 /** Uma avaliação nova, pronta para gravar, com os itens já copiados das perguntas. */
 export type NovaResposta = Omit<Prisma.RespostaUncheckedCreateInput, 'itens' | 'id' | 'enviadoEm'> & {
   itens: Prisma.RespostaItemUncheckedCreateWithoutRespostaInput[]
@@ -97,5 +106,30 @@ export const pesquisaRepository = {
       data: { tokenComplementoHash, tokenComplementoExpiraEm },
     })
     return count > 0
+  },
+
+  /**
+   * Usa o token e grava o complemento, numa transação só. O token só vale se for desta avaliação e estiver no
+   * prazo; usado, perde o hash e a validade. O `updateMany` vira um `UPDATE` só, que confere o hash e o prazo
+   * na mesma instrução que os apaga: num segundo uso ao mesmo tempo, o PostgreSQL espera o primeiro terminar,
+   * confere de novo e não acha mais o token. Devolve `false`, sem gravar nada, quando o token não valia.
+   */
+  complementar(
+    id: number,
+    tokenComplementoHash: string,
+    agora: Date,
+    { comentario, contato }: NovoComplemento,
+  ): Promise<boolean> {
+    return prisma.$transaction(async (tx) => {
+      const { count } = await tx.resposta.updateMany({
+        where: { id, tokenComplementoHash, tokenComplementoExpiraEm: { gt: agora } },
+        data: { tokenComplementoHash: null, tokenComplementoExpiraEm: null },
+      })
+      if (count === 0) return false
+
+      if (comentario) await tx.comentario.create({ data: { respostaId: id, ...comentario } })
+      if (contato) await tx.contatoRetorno.create({ data: { respostaId: id, ...contato } })
+      return true
+    })
   },
 }
