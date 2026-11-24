@@ -6,12 +6,12 @@
 
 **Bloqueado por:** 11 — Comentário e pedido de retorno depois do envio; 13 — Dashboard: filtros, resumo, NPS por setor e evolução
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Critérios de aceite:**
 
-- [ ] `GET /dashboard/categorias` devolve `{ categoriaId, categoria, media, percentual45, total }` só das categorias com notas no período, na ordem das categorias.
-- [ ] `GET /dashboard/ranking` devolve `melhores` e `piores`, até 3 em cada, no formato `{ setorId, setor, categoriaId, categoria, media, percentual45, total }`; só entram pontos com 5 notas ou mais, e nenhum ponto aparece nas duas listas.
-- [ ] `GET /dashboard/comentarios` exige também `comentarios:ver`, aceita `tipo` e `porPagina` (padrão 8) e devolve os mais recentes primeiro, no formato `{ id, respostaId, tipo, texto, setor, dataAtendimento, enviadoEm, classificacao }`, com `meta.total`.
-- [ ] O cálculo das médias por ponto fica pronto para ser reaproveitado pela TV (destaques) e pelas exportações.
-- [ ] Testes de integração: médias, o corte de 5 notas, o filtro por tipo e o Visualizador recebendo 403 nos comentários.
+- [x] `GET /dashboard/categorias` devolve `{ categoriaId, categoria, media, percentual45, total }` só das categorias com notas no período, na ordem das categorias.
+- [x] `GET /dashboard/ranking` devolve `melhores` e `piores`, até 3 em cada, no formato `{ setorId, setor, categoriaId, categoria, media, percentual45, total }`; só entram pontos com 5 notas ou mais, e nenhum ponto aparece nas duas listas.
+- [x] `GET /dashboard/comentarios` exige também `comentarios:ver`, aceita `tipo` e `porPagina` (padrão 8) e devolve os mais recentes primeiro, no formato `{ id, respostaId, tipo, texto, setor, dataAtendimento, enviadoEm, classificacao }`, com `meta.total`.
+- [x] O cálculo das médias por ponto fica pronto para ser reaproveitado pela TV (destaques) e pelas exportações.
+- [x] Testes de integração: médias, o corte de 5 notas, o filtro por tipo e o Visualizador recebendo 403 nos comentários.
