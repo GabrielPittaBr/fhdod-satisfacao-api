@@ -1,5 +1,5 @@
 // Campos que a API acrescenta ao Request do Express. O `id` e o `log` vêm do pino-http.
-import type { UsuarioAutenticado } from '../security/acesso'
+import type { TelaAutenticada, UsuarioAutenticado } from '../security/acesso'
 
 declare global {
   namespace Express {
@@ -11,6 +11,11 @@ declare global {
        * controllers o leem com `usuarioLogado(req)`.
        */
       usuario?: UsuarioAutenticado
+      /**
+       * A TV que abriu a rota, lida do banco pelo `tvToken`. Só existe nas rotas da TV; os controllers a leem
+       * com `telaAutenticada(req)`.
+       */
+      tela?: TelaAutenticada
     }
   }
 }
