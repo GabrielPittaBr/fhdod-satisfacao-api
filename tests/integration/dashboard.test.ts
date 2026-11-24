@@ -4,10 +4,12 @@ import { createApp } from '../../src/app'
 import { prisma } from '../../src/database/prisma'
 import { authService } from '../../src/modules/auth/auth.service'
 import {
+  COMENTARIOS_POR_PAGINA,
   MAXIMO_DE_PONTOS,
   MENSAGEM_GRANULARIDADE,
   MENSAGENS_DE_PONTOS_DEMAIS,
 } from '../../src/modules/dashboard/dashboard.schemas'
+import { MENSAGENS_DO_COMPLEMENTO } from '../../src/modules/pesquisa/pesquisa.schemas'
 import type { Perfil } from '../../src/shared/constants/perfis'
 import { MENSAGENS_DOS_FILTROS } from '../../src/shared/http/filtros-do-painel'
 import { MENSAGEM_FORA_DO_SETOR } from '../../src/shared/security/acesso'
@@ -23,15 +25,20 @@ import { bearer } from '../helpers/sessao'
 
 const app = createApp()
 
-type Rota = 'resumo' | 'nps-por-setor' | 'evolucao'
+type Rota = 'resumo' | 'nps-por-setor' | 'evolucao' | 'categorias' | 'ranking' | 'comentarios'
 type Query = Record<string, string | number>
 
-/** As três rotas, com o que cada uma pede além dos filtros. */
+/** As rotas que só exigem `dashboard:ver`, com o que cada uma pede além dos filtros. */
 const ROTAS: [Rota, Query][] = [
   ['resumo', {}],
   ['nps-por-setor', {}],
   ['evolucao', { granularidade: 'MES' }],
+  ['categorias', {}],
+  ['ranking', {}],
 ]
+
+/** Todas, com os comentários, que exigem também `comentarios:ver`. */
+const TODAS: [Rota, Query][] = [...ROTAS, ['comentarios', {}]]
 
 const NOVEMBRO = { inicio: '2026-11-01', fim: '2026-11-30', base: 'ATENDIMENTO' }
 
@@ -140,14 +147,14 @@ async function cenario() {
 }
 
 describe('acesso ao dashboard', () => {
-  it.each(ROTAS)('%s sem login: 401', async (rota, extra) => {
+  it.each(TODAS)('%s sem login: 401', async (rota, extra) => {
     const resposta = await pedir(rota, { ...NOVEMBRO, ...extra })
 
     expect(resposta.status).toBe(401)
     expect(erroDe(resposta).codigo).toBe('NAO_AUTENTICADO')
   })
 
-  it.each(ROTAS)('%s com a senha provisória: 403', async (rota, extra) => {
+  it.each(TODAS)('%s com a senha provisória: 403', async (rota, extra) => {
     const token = await tokenDe({ perfil: 'SUPER_ADMIN', trocarSenha: true })
 
     const resposta = await pedir(rota, { ...NOVEMBRO, ...extra }, token)
@@ -156,7 +163,7 @@ describe('acesso ao dashboard', () => {
     expect(erroDe(resposta).codigo).toBe('SEM_PERMISSAO')
   })
 
-  it.each(ROTAS)('%s sem dashboard:ver: 403', async (rota, extra) => {
+  it.each(TODAS)('%s sem dashboard:ver: 403', async (rota, extra) => {
     // Os quatro perfis têm a permissão: o teste tira a permissão de quem está logado, como faria uma mudança
     // no mapa de permissões.
     const autenticar = authService.autenticar.bind(authService)
@@ -181,7 +188,7 @@ describe('acesso ao dashboard', () => {
   })
 
   it.each(['SUPER_ADMIN', 'GESTOR', 'OUVIDORIA', 'VISUALIZADOR'] as Perfil[])(
-    'o %s tem dashboard:ver e lê as três rotas',
+    'o %s tem dashboard:ver e lê as rotas dos números',
     async (perfil) => {
       const token = await tokenDe({ perfil })
 
@@ -191,14 +198,34 @@ describe('acesso ao dashboard', () => {
     },
   )
 
+  it.each([
+    ['SUPER_ADMIN', 200],
+    ['GESTOR', 200],
+    ['OUVIDORIA', 200],
+    ['VISUALIZADOR', 403],
+  ] as [Perfil, number][])('comentários para o %s: %i, pela comentarios:ver', async (perfil, status) => {
+    const token = await tokenDe({ perfil })
+
+    const resposta = await pedir('comentarios', NOVEMBRO, token)
+
+    expect(resposta.status).toBe(status)
+    if (status === 403) {
+      expect(erroDe(resposta)).toMatchObject({
+        codigo: 'SEM_PERMISSAO',
+        mensagem: 'Você não tem permissão para isso.',
+      })
+    }
+  })
+
   it.each(['GESTOR', 'VISUALIZADOR'] as Perfil[])(
-    'o %s que pede um setor que não é seu recebe 403 nas três rotas',
+    'o %s que pede um setor que não é seu recebe 403 em cada rota',
     async (perfil) => {
       const { pronto, maternidade, responder } = await cenario()
       await responder(maternidade.id)
       const token = await tokenDe({ perfil, setorIds: [pronto.id] })
 
-      for (const [rota, extra] of ROTAS) {
+      // O Visualizador já não passa pelos comentários, sem a comentarios:ver.
+      for (const [rota, extra] of perfil === 'GESTOR' ? TODAS : ROTAS) {
         for (const setorId of [maternidade.id, 'todos', '']) {
           const resposta = await pedir(rota, { ...NOVEMBRO, ...extra, setorId }, token)
 
@@ -266,7 +293,7 @@ describe('acesso ao dashboard', () => {
 })
 
 describe('filtros do dashboard', () => {
-  it.each(ROTAS)('%s sem inicio, fim e base: 400 em cada um', async (rota, extra) => {
+  it.each(TODAS)('%s sem inicio, fim e base: 400 em cada um', async (rota, extra) => {
     const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
 
     const resposta = await pedir(rota, extra, token)
@@ -300,7 +327,7 @@ describe('filtros do dashboard', () => {
     await pedir('resumo', { ...NOVEMBRO, inicio: '2024-02-29' }, token).expect(200)
   })
 
-  it.each(ROTAS)('%s com o fim antes do início: 400 em fim; o mesmo dia vale', async (rota, extra) => {
+  it.each(TODAS)('%s com o fim antes do início: 400 em fim; o mesmo dia vale', async (rota, extra) => {
     const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
 
     const resposta = await pedir(
@@ -626,5 +653,407 @@ describe('GET /dashboard/evolucao', () => {
       { campo: 'granularidade', mensagem: MENSAGENS_DE_PONTOS_DEMAIS.DIA },
     ])
     expect(await evolucao({ ...ano, fim: '2025-01-01', granularidade: 'SEMANA' }, token)).toHaveLength(53)
+  })
+})
+
+interface IndicadorCategoria {
+  categoriaId: number
+  categoria: string
+  media: number | null
+  percentual45: number | null
+  total: number
+}
+interface ItemRanking {
+  setorId: number
+  setor: string
+  categoriaId: number
+  categoria: string
+  media: number
+  percentual45: number
+  total: number
+}
+interface ComentarioRecente {
+  id: number
+  respostaId: number
+  tipo: string
+  texto: string
+  setor: string
+  dataAtendimento: string
+  enviadoEm: string
+  classificacao: string
+}
+interface ListaDeComentarios {
+  data: ComentarioRecente[]
+  meta: { pagina: number; porPagina: number; total: number }
+}
+
+const categorias = (query: Query, token: string) => ler<IndicadorCategoria[]>('categorias', query, token)
+const ranking = (query: Query, token: string) =>
+  ler<{ melhores: ItemRanking[]; piores: ItemRanking[] }>('ranking', query, token)
+
+async function comentarios(query: Query, token: string): Promise<ListaDeComentarios> {
+  const resposta = await pedir('comentarios', query, token)
+  expect(resposta.status, JSON.stringify(resposta.body)).toBe(200)
+  return resposta.body as ListaDeComentarios
+}
+
+/** Os pontos de um ranking como `setor / categoria`. */
+const pontos = (lista: ItemRanking[]) => lista.map(({ setor, categoria }) => `${setor} / ${categoria}`)
+
+/**
+ * Três setores e três categorias, com uma pergunta de escala para cada par. As notas de um ponto viram
+ * respostas com só a pergunta dele.
+ */
+async function cenarioDasNotas() {
+  const espera = await criarCategoria({ nome: 'Tempo de espera', ordem: 2 })
+  const recepcao = await criarCategoria({ nome: 'Recepção', ordem: 1 })
+  const limpeza = await criarCategoria({ nome: 'Limpeza', ordem: 3 })
+  const pronto = await criarSetor({ nome: 'Pronto Atendimento', slug: 'pronto-atendimento' })
+  const pediatria = await criarSetor({ nome: 'Pediatria', slug: 'pediatria' })
+  const maternidade = await criarSetor({ nome: 'Maternidade', slug: 'maternidade' })
+  const turno = await criarTurno()
+  const perguntas = new Map<string, number>()
+  for (const setor of [pronto, pediatria, maternidade]) {
+    for (const categoria of [espera, recepcao, limpeza]) {
+      const pergunta = await criarPergunta({ setorId: setor.id, categoriaId: categoria.id })
+      perguntas.set(`${setor.id}:${categoria.id}`, pergunta.id)
+    }
+  }
+
+  /** Uma resposta por nota, no ponto pedido, em 10/11 se o teste não pedir outro dia. */
+  async function notas(
+    setor: { id: number },
+    categoria: { id: number },
+    valores: number[],
+    dados: Omit<DadosDaResposta, 'setorId'> = {},
+  ) {
+    for (const nota of valores) {
+      await criarResposta({
+        setorId: setor.id,
+        turnoId: turno.id,
+        dataAtendimento: '2026-11-10',
+        perguntaIds: [perguntas.get(`${setor.id}:${categoria.id}`) ?? 0],
+        nota,
+        ...dados,
+      })
+    }
+  }
+
+  return { espera, recepcao, limpeza, pronto, pediatria, maternidade, perguntas, notas }
+}
+
+describe('GET /dashboard/categorias', () => {
+  it('média e % de notas 4 e 5 de cada categoria com notas, na ordem das categorias', async () => {
+    const { espera, recepcao, limpeza, pronto, pediatria, notas } = await cenarioDasNotas()
+    const desativada = await criarCategoria({ nome: 'Estacionamento', ordem: 4, ativa: false })
+    await criarCategoria({ nome: 'Sem notas', ordem: 5 })
+    const estacionamento = await criarPergunta({ setorId: pronto.id, categoriaId: desativada.id })
+    const simNao = await criarPergunta({ setorId: pronto.id, categoriaId: limpeza.id, tipo: 'SIM_NAO' })
+
+    await notas(pronto, recepcao, [5, 5, 4, 3])
+    await notas(pediatria, recepcao, [1])
+    await notas(pronto, espera, [2, 1])
+    // A categoria desativada ainda tem as notas do período.
+    await criarResposta({
+      setorId: pronto.id,
+      perguntaIds: [estacionamento.id],
+      nota: 4,
+      dataAtendimento: '2026-11-03',
+    })
+    // O sim ou não não tem nota de 1 a 5: a Limpeza não entra.
+    await criarResposta({ setorId: pronto.id, perguntaIds: [simNao.id], dataAtendimento: '2026-11-03' })
+    // Fora do período: não conta.
+    await notas(pronto, espera, [5, 5], { dataAtendimento: '2026-10-31' })
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+
+    expect(await categorias(NOVEMBRO, token)).toEqual([
+      // 5 + 5 + 4 + 3 + 1 = 18 em 5 notas, 3 delas 4 ou 5.
+      { categoriaId: recepcao.id, categoria: 'Recepção', media: 3.6, percentual45: 60, total: 5 },
+      { categoriaId: espera.id, categoria: 'Tempo de espera', media: 1.5, percentual45: 0, total: 2 },
+      { categoriaId: desativada.id, categoria: 'Estacionamento', media: 4, percentual45: 100, total: 1 },
+    ])
+  })
+
+  it('a nota fica na categoria do momento da resposta, mesmo se a pergunta mudar de categoria', async () => {
+    const { espera, recepcao, pronto, perguntas, notas } = await cenarioDasNotas()
+    await notas(pronto, recepcao, [5, 4])
+    await prisma.pergunta.update({
+      where: { id: perguntas.get(`${pronto.id}:${recepcao.id}`) },
+      data: { categoriaId: espera.id },
+    })
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+
+    expect(await categorias(NOVEMBRO, token)).toEqual([
+      { categoriaId: recepcao.id, categoria: 'Recepção', media: 4.5, percentual45: 100, total: 2 },
+    ])
+  })
+
+  it('o Gestor só conta os seus setores, e os filtros valem', async () => {
+    const { recepcao, pronto, pediatria, notas } = await cenarioDasNotas()
+    await notas(pronto, recepcao, [5, 5, 4, 3])
+    await notas(pediatria, recepcao, [1, 1])
+    await notas(pronto, recepcao, [1], { canal: 'TOTEM' })
+    const token = await tokenDe({ perfil: 'GESTOR', setorIds: [pronto.id] })
+
+    expect(await categorias(NOVEMBRO, token)).toEqual([
+      // 5 + 5 + 4 + 3 + 1 = 18 em 5 notas.
+      { categoriaId: recepcao.id, categoria: 'Recepção', media: 3.6, percentual45: 60, total: 5 },
+    ])
+    expect(await categorias({ ...NOVEMBRO, canal: 'WEB' }, token)).toEqual([
+      { categoriaId: recepcao.id, categoria: 'Recepção', media: 4.3, percentual45: 75, total: 4 },
+    ])
+  })
+
+  it('sem notas no período, a lista vem vazia', async () => {
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+
+    expect(await categorias(NOVEMBRO, token)).toEqual([])
+  })
+})
+
+describe('GET /dashboard/ranking', () => {
+  it('os 3 melhores e os 3 piores pontos, sem repetir, só com 5 notas ou mais', async () => {
+    const { espera, recepcao, limpeza, pronto, pediatria, maternidade, notas } = await cenarioDasNotas()
+    await notas(pediatria, limpeza, [5, 5, 5, 5, 5])
+    await notas(pronto, recepcao, [5, 5, 5, 4, 4, 4])
+    await notas(pediatria, recepcao, [5, 4, 4, 4, 4])
+    await notas(pronto, limpeza, [4, 4, 3, 3, 3])
+    await notas(pediatria, espera, [3, 2, 2, 2, 1])
+    await notas(pronto, espera, [1, 1, 1, 2, 2, 1])
+    // Só 4 notas: fica de fora, mesmo com a maior média.
+    await notas(maternidade, recepcao, [5, 5, 5, 5])
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+
+    const { melhores, piores } = await ranking(NOVEMBRO, token)
+
+    expect(melhores).toEqual([
+      {
+        setorId: pediatria.id,
+        setor: 'Pediatria',
+        categoriaId: limpeza.id,
+        categoria: 'Limpeza',
+        media: 5,
+        percentual45: 100,
+        total: 5,
+      },
+      {
+        setorId: pronto.id,
+        setor: 'Pronto Atendimento',
+        categoriaId: recepcao.id,
+        categoria: 'Recepção',
+        media: 4.5,
+        percentual45: 100,
+        total: 6,
+      },
+      {
+        setorId: pediatria.id,
+        setor: 'Pediatria',
+        categoriaId: recepcao.id,
+        categoria: 'Recepção',
+        media: 4.2,
+        percentual45: 100,
+        total: 5,
+      },
+    ])
+    expect(piores).toEqual([
+      {
+        setorId: pronto.id,
+        setor: 'Pronto Atendimento',
+        categoriaId: espera.id,
+        categoria: 'Tempo de espera',
+        media: 1.3,
+        percentual45: 0,
+        total: 6,
+      },
+      {
+        setorId: pediatria.id,
+        setor: 'Pediatria',
+        categoriaId: espera.id,
+        categoria: 'Tempo de espera',
+        media: 2,
+        percentual45: 0,
+        total: 5,
+      },
+      {
+        setorId: pronto.id,
+        setor: 'Pronto Atendimento',
+        categoriaId: limpeza.id,
+        categoria: 'Limpeza',
+        media: 3.4,
+        percentual45: 40,
+        total: 5,
+      },
+    ])
+
+    // Com a quinta nota, a Maternidade entra; no empate com a Pediatria, vem a ordem alfabética.
+    await notas(maternidade, recepcao, [5])
+    expect(pontos((await ranking(NOVEMBRO, token)).melhores)).toEqual([
+      'Maternidade / Recepção',
+      'Pediatria / Limpeza',
+      'Pronto Atendimento / Recepção',
+    ])
+  })
+
+  it('o Gestor só vê os pontos dos seus setores; com poucos pontos, os piores ficam vazios', async () => {
+    const { espera, recepcao, limpeza, pronto, pediatria, notas } = await cenarioDasNotas()
+    await notas(pronto, recepcao, [5, 5, 5, 4, 4])
+    await notas(pronto, limpeza, [4, 4, 3, 3, 3])
+    await notas(pronto, espera, [1, 1, 1, 2, 2])
+    await notas(pediatria, limpeza, [5, 5, 5, 5, 5])
+    const token = await tokenDe({ perfil: 'GESTOR', setorIds: [pronto.id] })
+
+    expect(await ranking(NOVEMBRO, token)).toMatchObject({ piores: [] })
+    expect(pontos((await ranking(NOVEMBRO, token)).melhores)).toEqual([
+      'Pronto Atendimento / Recepção',
+      'Pronto Atendimento / Limpeza',
+      'Pronto Atendimento / Tempo de espera',
+    ])
+  })
+
+  it('os filtros valem: as notas de fora do período não contam para o corte de 5', async () => {
+    const { recepcao, pronto, notas } = await cenarioDasNotas()
+    await notas(pronto, recepcao, [5, 5, 5, 5])
+    await notas(pronto, recepcao, [5], { dataAtendimento: '2026-10-31' })
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+
+    expect(await ranking(NOVEMBRO, token)).toEqual({ melhores: [], piores: [] })
+    expect(pontos((await ranking({ ...NOVEMBRO, inicio: '2026-10-31' }, token)).melhores)).toEqual([
+      'Pronto Atendimento / Recepção',
+    ])
+  })
+})
+
+describe('GET /dashboard/comentarios', () => {
+  /** Uma resposta com comentário, enviada no instante pedido. */
+  async function comentar(
+    setorId: number,
+    enviadoEm: string,
+    tipo: 'ELOGIO' | 'RECLAMACAO' | 'SUGESTAO' | 'OUTRO' = 'ELOGIO',
+    dados: Omit<DadosDaResposta, 'setorId'> = {},
+  ) {
+    return criarResposta({
+      setorId,
+      dataAtendimento: '2026-11-10',
+      enviadoEm,
+      comentario: { tipo, texto: `Comentário de ${enviadoEm}` },
+      ...dados,
+    })
+  }
+
+  it('os mais recentes primeiro, no formato do contrato, só das respostas com comentário', async () => {
+    const pronto = await criarSetor({ nome: 'Pronto Atendimento', slug: 'pronto-atendimento' })
+    const antiga = await comentar(pronto.id, '2026-11-10T12:00:00.000Z', 'RECLAMACAO', {
+      classificacao: 'BAIXA',
+      nps: 4,
+      dataAtendimento: '2026-11-09',
+    })
+    const recente = await comentar(pronto.id, '2026-11-12T09:30:00.000Z', 'ELOGIO')
+    await criarResposta({ setorId: pronto.id, dataAtendimento: '2026-11-10' })
+    const token = await tokenDe({ perfil: 'OUVIDORIA' })
+    const comentarioDe = (respostaId: number) =>
+      prisma.comentario.findUniqueOrThrow({ where: { respostaId } })
+
+    expect(await comentarios(NOVEMBRO, token)).toEqual({
+      data: [
+        {
+          id: (await comentarioDe(recente.id)).id,
+          respostaId: recente.id,
+          tipo: 'ELOGIO',
+          texto: 'Comentário de 2026-11-12T09:30:00.000Z',
+          setor: 'Pronto Atendimento',
+          dataAtendimento: '2026-11-10',
+          enviadoEm: '2026-11-12T09:30:00.000Z',
+          classificacao: 'NORMAL',
+        },
+        {
+          id: (await comentarioDe(antiga.id)).id,
+          respostaId: antiga.id,
+          tipo: 'RECLAMACAO',
+          texto: 'Comentário de 2026-11-10T12:00:00.000Z',
+          setor: 'Pronto Atendimento',
+          dataAtendimento: '2026-11-09',
+          enviadoEm: '2026-11-10T12:00:00.000Z',
+          classificacao: 'BAIXA',
+        },
+      ],
+      meta: { pagina: 1, porPagina: COMENTARIOS_POR_PAGINA, total: 2 },
+    })
+  })
+
+  it(`${COMENTARIOS_POR_PAGINA} por página no padrão, com o total de todas as páginas`, async () => {
+    const pronto = await criarSetor()
+    // Dez comentários, um por hora, de 10/11 às 12h até as 21h (UTC).
+    const enviados = Array.from({ length: 10 }, (_, hora) => `2026-11-10T${String(12 + hora)}:00:00.000Z`)
+    for (const enviadoEm of enviados) await comentar(pronto.id, enviadoEm)
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+    const instantes = (lista: ListaDeComentarios) => lista.data.map(({ enviadoEm }) => enviadoEm)
+    const doMaisRecente = [...enviados].reverse()
+
+    const primeira = await comentarios(NOVEMBRO, token)
+    expect(instantes(primeira)).toEqual(doMaisRecente.slice(0, 8))
+    expect(primeira.meta).toEqual({ pagina: 1, porPagina: 8, total: 10 })
+
+    const segunda = await comentarios({ ...NOVEMBRO, porPagina: 3, pagina: 2 }, token)
+    expect(instantes(segunda)).toEqual(doMaisRecente.slice(3, 6))
+    expect(segunda.meta).toEqual({ pagina: 2, porPagina: 3, total: 10 })
+
+    expect(await comentarios({ ...NOVEMBRO, pagina: 3 }, token)).toEqual({
+      data: [],
+      meta: { pagina: 3, porPagina: 8, total: 10 },
+    })
+  })
+
+  it('o tipo mostra só os comentários daquele tipo', async () => {
+    const pronto = await criarSetor()
+    await comentar(pronto.id, '2026-11-10T12:00:00.000Z', 'ELOGIO')
+    await comentar(pronto.id, '2026-11-10T13:00:00.000Z', 'RECLAMACAO')
+    await comentar(pronto.id, '2026-11-10T14:00:00.000Z', 'ELOGIO')
+    await comentar(pronto.id, '2026-11-10T15:00:00.000Z', 'SUGESTAO')
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+    const tipos = async (query: Query) =>
+      (await comentarios({ ...NOVEMBRO, ...query }, token)).data.map(({ tipo }) => tipo)
+
+    expect(await tipos({})).toEqual(['SUGESTAO', 'ELOGIO', 'RECLAMACAO', 'ELOGIO'])
+    expect(await tipos({ tipo: 'ELOGIO' })).toEqual(['ELOGIO', 'ELOGIO'])
+    expect((await comentarios({ ...NOVEMBRO, tipo: 'RECLAMACAO' }, token)).meta.total).toBe(1)
+    expect(await tipos({ tipo: 'OUTRO' })).toEqual([])
+  })
+
+  it('o Gestor só vê os comentários dos seus setores, e os filtros valem', async () => {
+    const pronto = await criarSetor({ nome: 'Pronto Atendimento', slug: 'pronto-atendimento' })
+    const pediatria = await criarSetor({ nome: 'Pediatria', slug: 'pediatria' })
+    await comentar(pronto.id, '2026-11-10T12:00:00.000Z')
+    await comentar(pediatria.id, '2026-11-10T13:00:00.000Z')
+    // 23h30 de 10/11 em Brasília, atendida em 9/11.
+    await comentar(pronto.id, '2026-11-11T02:30:00.000Z', 'OUTRO', { dataAtendimento: '2026-11-09' })
+    const token = await tokenDe({ perfil: 'GESTOR', setorIds: [pronto.id] })
+    const setores = async (query: Query) =>
+      (await comentarios(query, token)).data.map(({ setor, tipo }) => `${setor} ${tipo}`)
+
+    expect(await setores(NOVEMBRO)).toEqual(['Pronto Atendimento OUTRO', 'Pronto Atendimento ELOGIO'])
+    expect(await setores({ inicio: '2026-11-10', fim: '2026-11-10', base: 'ATENDIMENTO' })).toEqual([
+      'Pronto Atendimento ELOGIO',
+    ])
+    expect(await setores({ inicio: '2026-11-10', fim: '2026-11-10', base: 'ENVIO' })).toEqual([
+      'Pronto Atendimento OUTRO',
+      'Pronto Atendimento ELOGIO',
+    ])
+  })
+
+  it('tipo, página e itens por página fora dos valores aceitos: 400 em cada campo', async () => {
+    const token = await tokenDe({ perfil: 'SUPER_ADMIN' })
+
+    const resposta = await pedir(
+      'comentarios',
+      { ...NOVEMBRO, tipo: 'ELOGIOS', pagina: 0, porPagina: 101 },
+      token,
+    )
+
+    expect(resposta.status).toBe(400)
+    expect(erroDe(resposta).detalhes).toEqual([
+      { campo: 'tipo', mensagem: MENSAGENS_DO_COMPLEMENTO.tipo },
+      { campo: 'pagina', mensagem: 'Use um número de página a partir de 1' },
+      { campo: 'porPagina', mensagem: 'Use de 1 a 100 itens por página' },
+    ])
   })
 })

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import { prisma } from '../../src/database/prisma'
-import type { Canal, Classificacao } from '../../src/generated/prisma/enums'
+import type { Canal, Classificacao, TipoComentario } from '../../src/generated/prisma/enums'
 import { criarTurno } from './turnos'
 
 export interface DadosDaResposta {
@@ -20,6 +20,8 @@ export interface DadosDaResposta {
   enviadoEm?: string
   /** Padrão: `NORMAL`, sem passar pelo `classificarNota`. */
   classificacao?: Classificacao
+  /** O comentário do complemento. Padrão: nenhum. */
+  comentario?: { tipo: TipoComentario; texto: string }
 }
 
 /**
@@ -37,6 +39,7 @@ export async function criarResposta({
   dataAtendimento = '2026-11-20',
   enviadoEm,
   classificacao = 'NORMAL',
+  comentario,
 }: DadosDaResposta) {
   const perguntas = await prisma.pergunta.findMany({ where: { id: { in: perguntaIds } } })
   return prisma.resposta.create({
@@ -48,6 +51,7 @@ export async function criarResposta({
       nps,
       classificacao,
       ...(enviadoEm !== undefined && { enviadoEm: new Date(enviadoEm) }),
+      ...(comentario !== undefined && { comentario: { create: comentario } }),
       chaveIdempotencia: randomUUID(),
       itens: {
         create: perguntas.map(({ id, categoriaId, texto, tipo, opcoes }) => ({
