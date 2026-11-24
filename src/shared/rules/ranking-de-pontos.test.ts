@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  destacarPontos,
   MINIMO_DE_NOTAS_DO_PONTO,
   ranquearPontos,
+  SETORES_NOS_DESTAQUES,
   TAMANHO_DO_RANKING,
   type PontoAvaliado,
 } from './ranking-de-pontos'
@@ -100,5 +102,71 @@ describe('ranquearPontos', () => {
       'Limpeza',
       'Recepção',
     ])
+  })
+})
+
+describe('destacarPontos', () => {
+  /** Um ponto do setor pedido (o ID e o nome), numa categoria de nome único. */
+  function doSetor(setorId: number, media: number, percentual45: number, total = 10): PontoAvaliado {
+    criados += 1
+    return {
+      setorId,
+      setor: `Setor ${setorId}`,
+      categoriaId: criados,
+      categoria: `Categoria ${String(criados).padStart(3, '0')}`,
+      media,
+      percentual45,
+      total,
+    }
+  }
+
+  const resumo = (pontos: PontoAvaliado[]) => pontos.map(({ setorId, media }) => [setorId, media])
+
+  it('três setores, no máximo, com 5 notas ou mais', () => {
+    expect(SETORES_NOS_DESTAQUES).toBe(3)
+  })
+
+  it('o melhor ponto de cada setor, do melhor para baixo, sem repetir o setor', () => {
+    const pontos = [
+      doSetor(1, 4.9, 95),
+      doSetor(1, 4.8, 90),
+      doSetor(1, 4.7, 90),
+      doSetor(2, 4.1, 80),
+      doSetor(3, 3.2, 40),
+      doSetor(2, 4.6, 85),
+      doSetor(4, 2.0, 10),
+    ]
+
+    expect(resumo(destacarPontos(pontos))).toEqual([
+      [1, 4.9],
+      [2, 4.6],
+      [3, 3.2],
+    ])
+  })
+
+  it('o ponto com menos de 5 notas fica de fora, e o setor entra com o seu próximo ponto', () => {
+    const pontos = [doSetor(1, 5, 100, 4), doSetor(1, 3, 50, 5), doSetor(2, 4, 75, 4)]
+
+    expect(resumo(destacarPontos(pontos))).toEqual([[1, 3]])
+  })
+
+  it('com menos de três setores, a lista fica curta; sem pontos, vazia', () => {
+    expect(resumo(destacarPontos([doSetor(1, 4, 80), doSetor(1, 4.5, 90)]))).toEqual([[1, 4.5]])
+    expect(destacarPontos([])).toEqual([])
+  })
+
+  it('no empate da média, vale o % de notas 4 e 5 e depois o ponto com mais notas, como no ranking', () => {
+    const pontos = [doSetor(1, 4.2, 70), doSetor(2, 4.2, 80, 6), doSetor(3, 4.2, 80, 12), doSetor(4, 4.2, 60)]
+
+    expect(destacarPontos(pontos).map(({ setorId }) => setorId)).toEqual([3, 2, 1])
+  })
+
+  it('não muda a ordem da lista recebida', () => {
+    const pontos = [doSetor(1, 3, 50), doSetor(2, 4, 80)]
+    const antes = [...pontos]
+
+    destacarPontos(pontos)
+
+    expect(pontos).toEqual(antes)
   })
 })
