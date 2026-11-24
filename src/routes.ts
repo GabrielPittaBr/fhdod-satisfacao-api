@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { criarAuthRoutes } from './modules/auth/auth.routes'
 import categoriasRoutes from './modules/categorias/categorias.routes'
+import dashboardRoutes from './modules/dashboard/dashboard.routes'
 import perguntasRoutes from './modules/perguntas/perguntas.routes'
 import { criarPesquisaRoutes } from './modules/pesquisa/pesquisa.routes'
 import setoresRoutes from './modules/setores/setores.routes'
@@ -21,5 +22,6 @@ export function criarRotas(): Router {
   routes.use(turnosRoutes)
   routes.use(perguntasRoutes)
   routes.use(usuariosRoutes)
+  routes.use(dashboardRoutes)
   return routes
 }

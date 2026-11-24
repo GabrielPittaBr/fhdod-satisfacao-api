@@ -27,6 +27,14 @@
       }
     },
     "schemas": {
+      "BaseData": {
+        "type": "string",
+        "enum": [
+          "ATENDIMENTO",
+          "ENVIO"
+        ],
+        "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10)."
+      },
       "Canal": {
         "type": "string",
         "enum": [
@@ -250,6 +258,15 @@
         ],
         "description": "Corpo de toda resposta de erro da API."
       },
+      "Granularidade": {
+        "type": "string",
+        "enum": [
+          "DIA",
+          "SEMANA",
+          "MES"
+        ],
+        "description": "Um ponto por dia, por semana (de segunda a domingo) ou por mês."
+      },
       "ItemEnvio": {
         "type": "object",
         "properties": {
@@ -296,6 +313,37 @@
           "total"
         ],
         "description": "Paginação de uma lista."
+      },
+      "NpsSetor": {
+        "type": "object",
+        "properties": {
+          "setorId": {
+            "type": "integer"
+          },
+          "setor": {
+            "type": "string",
+            "description": "O nome do setor, também se ele estiver desativado."
+          },
+          "nps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "% de promotores (9 e 10) menos % de detratores (0 a 6), arredondado, de -100 a 100; `null` sem respostas.",
+            "example": 42
+          },
+          "total": {
+            "type": "integer",
+            "description": "Respostas do setor no período."
+          }
+        },
+        "required": [
+          "setorId",
+          "setor",
+          "nps",
+          "total"
+        ],
+        "description": "O NPS de um setor no período, com o número de respostas."
       },
       "Perfil": {
         "type": "string",
@@ -506,6 +554,34 @@
         ],
         "description": "O que a tela da pesquisa precisa, lido do cadastro e das configurações. Os limites de nota baixa não vêm: a classificação é da API."
       },
+      "PontoEvolucao": {
+        "type": "object",
+        "properties": {
+          "periodo": {
+            "type": "string",
+            "description": "Primeiro dia do período, em AAAA-MM-DD: o dia, a segunda-feira da semana ou o dia 1 do mês.",
+            "example": "2026-11-02"
+          },
+          "nps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "% de promotores (9 e 10) menos % de detratores (0 a 6), arredondado, de -100 a 100; `null` sem respostas.",
+            "example": 42
+          },
+          "total": {
+            "type": "integer",
+            "description": "Respostas no período; 0 no período sem resposta."
+          }
+        },
+        "required": [
+          "periodo",
+          "nps",
+          "total"
+        ],
+        "description": "Um ponto da evolução do NPS."
+      },
       "RespostaCriada": {
         "type": "object",
         "properties": {
@@ -532,6 +608,62 @@
           "expiraEm"
         ],
         "description": "A avaliação gravada."
+      },
+      "Resumo": {
+        "type": "object",
+        "properties": {
+          "nps": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "% de promotores (9 e 10) menos % de detratores (0 a 6), arredondado, de -100 a 100; `null` sem respostas.",
+            "example": 42
+          },
+          "total": {
+            "type": "integer",
+            "description": "Respostas no período."
+          },
+          "promotores": {
+            "type": "integer",
+            "description": "Respostas com NPS 9 ou 10."
+          },
+          "neutros": {
+            "type": "integer",
+            "description": "Respostas com NPS 7 ou 8."
+          },
+          "detratores": {
+            "type": "integer",
+            "description": "Respostas com NPS de 0 a 6."
+          },
+          "notasBaixas": {
+            "type": "integer",
+            "description": "Respostas com classificação baixa ou baixíssima: a pior entre o NPS e as notas de 1 a 5, com os limites das configurações do momento do envio."
+          },
+          "baixissimas": {
+            "type": "integer",
+            "description": "Respostas com classificação baixíssima."
+          },
+          "mediaEscala": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Média das notas de 1 a 5 de todas as perguntas de escala respondidas, com uma casa decimal; `null` sem nenhuma nota.",
+            "example": 4.3
+          }
+        },
+        "required": [
+          "nps",
+          "total",
+          "promotores",
+          "neutros",
+          "detratores",
+          "notasBaixas",
+          "baixissimas",
+          "mediaEscala"
+        ],
+        "description": "Os números principais da pesquisa no período e nos filtros pedidos."
       },
       "Saude": {
         "type": "object",
@@ -5198,6 +5330,622 @@
                   "erro": {
                     "codigo": "NAO_ENCONTRADO",
                     "mensagem": "Usuário não encontrado.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/resumo": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "NPS, respostas, promotores, neutros, detratores e notas baixas",
+        "description": "Os cartões do topo do painel. Os filtros são os mesmos em todos os blocos: o período (`inicio` e `fim`, incluídos) comparado com a `base` (o dia do atendimento ou o dia do envio em Brasília), o setor, o turno e o canal. Super Admin e Ouvidoria veem todos os setores; o Gestor e o Visualizador, só os seus, mesmo sem pedir um setor. Sem respostas, `nps` e `mediaEscala` vêm `null` e as contagens, 0.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": true,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": true,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": true,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Os números do período.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "nps": 42,
+                    "total": 134,
+                    "promotores": 78,
+                    "neutros": 34,
+                    "detratores": 22,
+                    "notasBaixas": 25,
+                    "baixissimas": 6,
+                    "mediaEscala": 4.3
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Resumo"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: sem `inicio`, `fim` ou `base`; data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId` ou `canal` fora dos valores aceitos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "fim",
+                        "mensagem": "A data final precisa ser igual ou depois da inicial"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: o Gestor ou o Visualizador pediu um `setorId` que não é seu, ou a pessoa está com a senha provisória. Os quatro perfis têm `dashboard:ver`.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/nps-por-setor": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "NPS de cada setor, do maior para o menor",
+        "description": "Só os setores com respostas no período, também os desativados; a lista vazia quando nenhum teve. No empate do NPS, vem antes o setor com mais respostas e, depois, a ordem alfabética. Os filtros são os mesmos em todos os blocos: o período (`inicio` e `fim`, incluídos) comparado com a `base` (o dia do atendimento ou o dia do envio em Brasília), o setor, o turno e o canal. Super Admin e Ouvidoria veem todos os setores; o Gestor e o Visualizador, só os seus, mesmo sem pedir um setor.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": true,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": true,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": true,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "O NPS de cada setor.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "setorId": 3,
+                      "setor": "Pediatria",
+                      "nps": 71,
+                      "total": 28
+                    },
+                    {
+                      "setorId": 1,
+                      "setor": "Pronto Atendimento",
+                      "nps": 38,
+                      "total": 81
+                    },
+                    {
+                      "setorId": 2,
+                      "setor": "Ambulatório",
+                      "nps": -4,
+                      "total": 25
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/NpsSetor"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: sem `inicio`, `fim` ou `base`; data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId` ou `canal` fora dos valores aceitos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "fim",
+                        "mensagem": "A data final precisa ser igual ou depois da inicial"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: o Gestor ou o Visualizador pediu um `setorId` que não é seu, ou a pessoa está com a senha provisória. Os quatro perfis têm `dashboard:ver`.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/evolucao": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "NPS por dia, semana ou mês",
+        "description": "Um ponto por período, do que contém o `inicio` ao que contém o `fim`, em ordem, inclusive os sem resposta (`nps` `null` e `total` 0). O `periodo` é o primeiro dia: o próprio dia, a segunda-feira da semana ou o dia 1 do mês, mesmo antes do `inicio`; só contam as respostas de `inicio` a `fim`. No máximo 366 pontos. Os filtros são os mesmos em todos os blocos: o período (`inicio` e `fim`, incluídos) comparado com a `base` (o dia do atendimento ou o dia do envio em Brasília), o setor, o turno e o canal. Super Admin e Ouvidoria veem todos os setores; o Gestor e o Visualizador, só os seus, mesmo sem pedir um setor.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": true,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": true,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": true,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Granularidade"
+            },
+            "required": true,
+            "description": "Um ponto por dia, por semana (de segunda a domingo) ou por mês.",
+            "name": "granularidade",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Os pontos da evolução.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "periodo": "2026-10-26",
+                      "nps": 35,
+                      "total": 20
+                    },
+                    {
+                      "periodo": "2026-11-02",
+                      "nps": 48,
+                      "total": 41
+                    },
+                    {
+                      "periodo": "2026-11-09",
+                      "nps": null,
+                      "total": 0
+                    },
+                    {
+                      "periodo": "2026-11-16",
+                      "nps": 40,
+                      "total": 37
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/PontoEvolucao"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: sem `inicio`, `fim` ou `base`; data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId` ou `canal` fora dos valores aceitos; ou `granularidade` ausente, fora dos valores aceitos ou com mais de 366 pontos no período (em `granularidade`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "granularidade",
+                        "mensagem": "Escolha um período de até 366 dias ou veja por semana ou por mês"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: o Gestor ou o Visualizador pediu um `setorId` que não é seu, ou a pessoa está com a senha provisória. Os quatro perfis têm `dashboard:ver`.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }
