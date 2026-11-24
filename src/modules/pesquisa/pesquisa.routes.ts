@@ -3,7 +3,7 @@ import { env } from '../../config/env'
 import { criarLimiteDeEnvios } from '../../middlewares/rate-limit'
 import { validate } from '../../middlewares/validate'
 import { pesquisaController } from './pesquisa.controller'
-import { abrirPesquisa, enviarResposta } from './pesquisa.schemas'
+import { abrirPesquisa, complementarResposta, enviarResposta } from './pesquisa.schemas'
 
 /**
  * Rotas públicas da pesquisa do paciente, sem login. É uma função, como as do login, porque o limite de
@@ -18,6 +18,12 @@ export function criarPesquisaRoutes(): Router {
     criarLimiteDeEnvios(env.RATE_LIMIT_ALLOWLIST),
     validate(enviarResposta),
     pesquisaController.enviar,
+  )
+  // Sem limite por IP: só passa quem tem o token de um envio, que já entrou no limite, e o token vale uma vez.
+  router.post(
+    '/publico/respostas/:id/complemento',
+    validate(complementarResposta),
+    pesquisaController.complementar,
   )
 
   return router

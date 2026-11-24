@@ -3,7 +3,7 @@
   "info": {
     "title": "API de Satisfação Hospitalar da FHDOD",
     "version": "0.1.0",
-    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log.\n- Rotas do painel: token de acesso em `Authorization: Bearer <token>`. Sem ele, vencido ou com o usuário inativo, 401 `NAO_AUTENTICADO`; sem a permissão ou fora dos setores da pessoa, 403 `SEM_PERMISSAO`. Com a senha provisória, as rotas do painel respondem 403 até a troca em `/auth/senha`; `/auth/me` funciona.\n- Rotas `/publico`: a pesquisa do paciente, sem login."
+    "description": "Contrato da API do Sistema de Satisfação Hospitalar da FHDOD.\n\n- Sucesso: `{ \"data\": ... }`. Listas paginadas: `{ \"data\": [...], \"meta\": { \"pagina\", \"porPagina\", \"total\" } }`.\n- Erro: sempre o componente `Erro`, `{ \"erro\": { \"codigo\", \"mensagem\", \"detalhes\", \"requestId\" } }`. A `mensagem` é escrita para quem está na tela.\n- Toda resposta traz o cabeçalho `X-Request-Id`, o mesmo `requestId` dos erros e do log.\n- Rotas do painel: token de acesso em `Authorization: Bearer <token>`. Sem ele, vencido ou com o usuário inativo, 401 `NAO_AUTENTICADO`; sem a permissão ou fora dos setores da pessoa, 403 `SEM_PERMISSAO`. Com a senha provisória, as rotas do painel respondem 403 até a troca em `/auth/senha`; `/auth/me` funciona.\n- Rotas `/publico`: a pesquisa do paciente, sem login. O complemento da avaliação leva o token devolvido pelo envio no cabeçalho `X-Complemento-Token`."
   },
   "components": {
     "securitySchemes": {
@@ -18,6 +18,12 @@
         "in": "cookie",
         "name": "refresh_token",
         "description": "Refresh token de 7 dias, gravado pelo login num cookie HttpOnly, Secure e SameSite=Strict, que o navegador envia só às rotas de `/api/v1/auth`. Cada uso troca o token por um novo."
+      },
+      "tokenComplemento": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Complemento-Token",
+        "description": "O `tokenComplemento` devolvido pelo envio da avaliação, para anexar o comentário e o telefone a ela. Vale uma vez só, até 30 minutos depois do envio."
       }
     },
     "schemas": {
@@ -76,6 +82,63 @@
           "ERRO_INTERNO"
         ],
         "description": "Código do erro. Cada um tem o seu status HTTP; código novo só entra combinado com o front."
+      },
+      "Complemento": {
+        "type": "object",
+        "properties": {
+          "comentario": {
+            "type": "object",
+            "properties": {
+              "tipo": {
+                "$ref": "#/components/schemas/TipoComentario"
+              },
+              "texto": {
+                "type": "string",
+                "minLength": 1,
+                "description": "O que aconteceu, o elogio ou a sugestão: não vazio e até o `textoLimiteCaracteres` da pesquisa (os espaços das pontas saem).",
+                "example": "Esperei muito na triagem."
+              }
+            },
+            "required": [
+              "tipo",
+              "texto"
+            ],
+            "description": "O comentário, se a pessoa escreveu."
+          },
+          "contato": {
+            "type": "object",
+            "properties": {
+              "telefone": {
+                "type": "string",
+                "description": "Com DDD, de 10 ou 11 dígitos, com ou sem a máscara (espaços, parênteses, hífen e ponto). É gravado cifrado, só com os dígitos.",
+                "example": "(51) 99999-0000"
+              },
+              "consentimento": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ],
+                "description": "A pessoa autorizou o hospital a guardar o telefone e ligar. Sempre `true`."
+              }
+            },
+            "required": [
+              "telefone",
+              "consentimento"
+            ],
+            "description": "O pedido de retorno, se a pessoa deixou o telefone. A tela o oferece na avaliação baixa."
+          }
+        },
+        "description": "O que o paciente anexa à avaliação depois do envio: o comentário, o telefone ou os dois.",
+        "example": {
+          "comentario": {
+            "tipo": "RECLAMACAO",
+            "texto": "Esperei muito na triagem."
+          },
+          "contato": {
+            "telefone": "(51) 99999-0000",
+            "consentimento": true
+          }
+        }
       },
       "DetalheErro": {
         "type": "object",
@@ -597,6 +660,15 @@
           "ativo"
         ],
         "description": "Unidade do hospital com pesquisa própria."
+      },
+      "TipoComentario": {
+        "type": "string",
+        "enum": [
+          "ELOGIO",
+          "RECLAMACAO",
+          "SUGESTAO",
+          "OUTRO"
+        ]
       },
       "TipoPergunta": {
         "type": "string",
@@ -1554,6 +1626,107 @@
                   "erro": {
                     "codigo": "LIMITE_ATINGIDO",
                     "mensagem": "Muitas avaliações enviadas desta rede. Espere alguns minutos e tente de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/publico/respostas/{id}/complemento": {
+      "post": {
+        "tags": [
+          "Pesquisa pública"
+        ],
+        "summary": "Anexa o comentário e o pedido de retorno",
+        "description": "Sem login: vale o token de complemento do envio, no cabeçalho `X-Complemento-Token`, uma vez só e até 30 minutos depois do envio. Anexa o comentário, o pedido de retorno ou os dois, numa chamada só: depois dela, o token não vale mais, mesmo dentro do prazo. O telefone é gravado cifrado (AES-256-GCM), com os 4 últimos dígitos em claro e a hora do consentimento, e o pedido de retorno nasce `NOVO`. Um erro de validação não gasta o token. O telefone não aparece em nenhuma resposta nem no log.",
+        "security": [
+          {
+            "tokenComplemento": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1
+            },
+            "required": true,
+            "name": "id",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Complemento"
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Complemento gravado."
+          },
+          "400": {
+            "description": "`VALIDACAO`: um item em `detalhes` por problema: corpo sem o comentário nem o telefone (em `body`), tipo fora da lista (em `comentario.tipo`), texto vazio ou acima do `textoLimiteCaracteres` (em `comentario.texto`), telefone sem DDD ou sem 10 ou 11 dígitos (em `contato.telefone`) e consentimento que não é `true` (em `contato.consentimento`).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "contato.telefone",
+                        "mensagem": "Informe o telefone com DDD, como (51) 99999-0000"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem o token, com o token de outra avaliação, vencido ou já usado.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "O prazo para complementar esta avaliação terminou.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }
