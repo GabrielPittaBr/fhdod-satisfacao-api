@@ -9,6 +9,9 @@ export const MINIMO_DE_NOTAS_DO_PONTO = 5
 /** Pontos em cada lista do ranking, no máximo. */
 export const TAMANHO_DO_RANKING = 3
 
+/** Setores nos destaques da TV, no máximo, com um ponto de cada. */
+export const SETORES_NOS_DESTAQUES = 3
+
 /** Um setor numa categoria, com a média e o % de notas 4 e 5 das notas do período. */
 export interface PontoAvaliado {
   setorId: number
@@ -41,6 +44,11 @@ export function piorPrimeiro(a: PontoAvaliado, b: PontoAvaliado): number {
   return a.media - b.media || a.percentual45 - b.percentual45 || b.total - a.total || porNomeDoPonto(a, b)
 }
 
+/** Só os pontos com pelo menos `MINIMO_DE_NOTAS_DO_PONTO` notas, os que entram no ranking e nos destaques. */
+function pontosComNotasSuficientes<P extends PontoAvaliado>(pontos: readonly P[]): P[] {
+  return pontos.filter(({ total }) => total >= MINIMO_DE_NOTAS_DO_PONTO)
+}
+
 /**
  * Os melhores e os piores pontos, até `TAMANHO_DO_RANKING` em cada lista, só com os que têm pelo menos
  * `MINIMO_DE_NOTAS_DO_PONTO` notas. Os piores saem dos que não estão nos melhores: com poucos pontos, a lista
@@ -49,11 +57,26 @@ export function piorPrimeiro(a: PontoAvaliado, b: PontoAvaliado): number {
 export function ranquearPontos<P extends PontoAvaliado>(
   pontos: readonly P[],
 ): { melhores: P[]; piores: P[] } {
-  const elegiveis = pontos.filter(({ total }) => total >= MINIMO_DE_NOTAS_DO_PONTO)
+  const elegiveis = pontosComNotasSuficientes(pontos)
   const melhores = [...elegiveis].sort(melhorPrimeiro).slice(0, TAMANHO_DO_RANKING)
   const piores = elegiveis
     .filter((ponto) => !melhores.includes(ponto))
     .sort(piorPrimeiro)
     .slice(0, TAMANHO_DO_RANKING)
   return { melhores, piores }
+}
+
+/**
+ * Os destaques da TV: o ponto mais bem avaliado de cada setor, do melhor para baixo, até
+ * `SETORES_NOS_DESTAQUES` setores diferentes, só com os pontos que têm pelo menos `MINIMO_DE_NOTAS_DO_PONTO`
+ * notas. Um ponto por setor, para os destaques não ficarem todos num setor só; a ordem é a dos melhores do
+ * ranking.
+ */
+export function destacarPontos<P extends PontoAvaliado>(pontos: readonly P[]): P[] {
+  const destaques: P[] = []
+  for (const ponto of pontosComNotasSuficientes(pontos).sort(melhorPrimeiro)) {
+    if (destaques.length === SETORES_NOS_DESTAQUES) break
+    if (!destaques.some(({ setorId }) => setorId === ponto.setorId)) destaques.push(ponto)
+  }
+  return destaques
 }

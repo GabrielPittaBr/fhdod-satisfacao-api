@@ -5,7 +5,6 @@ import { mediaComUmaCasa } from '../../shared/rules/media'
 import { indicadoresDasNotas } from '../../shared/rules/notas-da-escala'
 import { porNome } from '../../shared/rules/ordem-alfabetica'
 import { ranquearPontos, type PontoAvaliado } from '../../shared/rules/ranking-de-pontos'
-import type { UsuarioAutenticado } from '../../shared/security/acesso'
 import { dashboardRepository } from './dashboard.repository'
 import type {
   ComentarioRecente,
@@ -31,15 +30,16 @@ function porNps(a: NpsSetor, b: NpsSetor): number {
 }
 
 /**
- * Os números do dashboard. O escopo de setor vai para a própria consulta, com os `setorIds` de quem está
- * logado: o Gestor e o Visualizador só contam os seus setores, mesmo sem pedir um. Quem pede um setor de fora
- * já recebeu 403 no `setorScope` da rota.
+ * Os números do dashboard. O escopo de setor vai para a própria consulta, com os `setorIds` de quem pede: no
+ * painel, os de quem está logado, e o Gestor e o Visualizador só contam os seus setores, mesmo sem pedir um (quem
+ * pede um setor de fora já recebeu 403 no `setorScope` da rota); na TV, que não tem login, `null`, que conta
+ * todos os setores. As exportações usam as mesmas contas.
  */
 export const dashboardService = {
-  async resumo(usuario: UsuarioAutenticado, filtros: FiltrosDoDashboard): Promise<Resumo> {
+  async resumo(filtros: FiltrosDoDashboard, setorIds: readonly number[] | null): Promise<Resumo> {
     const { quantidadeDeNotas, somaDasNotas, ...contagem } = await dashboardRepository.resumo(
       filtros,
-      usuario.setorIds,
+      setorIds,
     )
     return {
       nps: calcularNps(contagem),
@@ -54,8 +54,8 @@ export const dashboardService = {
   },
 
   /** Só os setores com respostas no período: um setor sem nenhuma não tem NPS para mostrar. */
-  async npsPorSetor(usuario: UsuarioAutenticado, filtros: FiltrosDoDashboard): Promise<NpsSetor[]> {
-    const setores = await dashboardRepository.npsPorSetor(filtros, usuario.setorIds)
+  async npsPorSetor(filtros: FiltrosDoDashboard, setorIds: readonly number[] | null): Promise<NpsSetor[]> {
+    const setores = await dashboardRepository.npsPorSetor(filtros, setorIds)
     return setores
       .map(({ setorId, setor, ...contagem }) => ({
         setorId,
@@ -67,10 +67,10 @@ export const dashboardService = {
   },
 
   async evolucao(
-    usuario: UsuarioAutenticado,
     { granularidade, ...filtros }: FiltrosDaEvolucao,
+    setorIds: readonly number[] | null,
   ): Promise<PontoEvolucao[]> {
-    const periodos = await dashboardRepository.evolucao(filtros, granularidade, usuario.setorIds)
+    const periodos = await dashboardRepository.evolucao(filtros, granularidade, setorIds)
     return periodos.map(({ periodo, ...contagem }) => ({
       periodo,
       nps: calcularNps(contagem),
@@ -79,8 +79,11 @@ export const dashboardService = {
   },
 
   /** A média e o % de notas 4 e 5 de cada categoria com notas no período, na ordem das categorias. */
-  async categorias(usuario: UsuarioAutenticado, filtros: FiltrosDoDashboard): Promise<IndicadorCategoria[]> {
-    const categorias = await dashboardRepository.categorias(filtros, usuario.setorIds)
+  async categorias(
+    filtros: FiltrosDoDashboard,
+    setorIds: readonly number[] | null,
+  ): Promise<IndicadorCategoria[]> {
+    const categorias = await dashboardRepository.categorias(filtros, setorIds)
     return categorias.map(({ categoriaId, categoria, ...contagem }) => ({
       categoriaId,
       categoria,
@@ -90,8 +93,7 @@ export const dashboardService = {
 
   /**
    * A média e o % de notas 4 e 5 de cada ponto (um setor numa categoria) com notas no período, sem ordem e sem
-   * o mínimo de notas. Recebe os `setorIds`, e não quem está logado, para a TV (os destaques, que não têm login)
-   * e as exportações usarem o mesmo cálculo; `null` conta todos os setores.
+   * o mínimo de notas. É a base do ranking, dos destaques da TV e das exportações.
    */
   async pontosAvaliados(
     filtros: FiltrosDoPainel,
@@ -108,20 +110,20 @@ export const dashboardService = {
   },
 
   /** Os melhores e os piores pontos com 5 notas ou mais, até 3 em cada lista, sem repetir. */
-  async ranking(usuario: UsuarioAutenticado, filtros: FiltrosDoDashboard): Promise<Ranking> {
-    return ranquearPontos(await dashboardService.pontosAvaliados(filtros, usuario.setorIds))
+  async ranking(filtros: FiltrosDoDashboard, setorIds: readonly number[] | null): Promise<Ranking> {
+    return ranquearPontos(await dashboardService.pontosAvaliados(filtros, setorIds))
   },
 
   /** Os comentários do período, do envio mais recente para o mais antigo, na página pedida. */
   async comentarios(
-    usuario: UsuarioAutenticado,
     { tipo, pagina, porPagina, ...filtros }: FiltrosDosComentarios,
+    setorIds: readonly number[] | null,
   ): Promise<{ comentarios: ComentarioRecente[]; meta: Meta }> {
     const { comentarios, total } = await dashboardRepository.comentarios(
       filtros,
       tipo,
       { pagina, porPagina },
-      usuario.setorIds,
+      setorIds,
     )
     return {
       comentarios: comentarios.map(({ enviadoEm, ...comentario }) => ({
