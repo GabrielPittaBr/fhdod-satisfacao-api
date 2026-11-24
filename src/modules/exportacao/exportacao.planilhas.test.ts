@@ -2,12 +2,9 @@ import ExcelJS from 'exceljs'
 import { PassThrough } from 'node:stream'
 import { describe, expect, it } from 'vitest'
 import { Saida } from '../../shared/http/download'
-import {
-  escreverPlanilhaDasRespostas,
-  type DadosDasRespostas,
-  type DadosDoResumo,
-} from './exportacao.planilhas'
+import { escreverPlanilhaDasRespostas, type DadosDasRespostas } from './exportacao.planilhas'
 import type { ItemExportado } from './exportacao.repository'
+import type { DadosDoResumo } from './exportacao.resumo'
 
 const RESUMO_VAZIO: DadosDoResumo = {
   filtros: { inicio: '2026-11-01', fim: '2026-11-30', base: 'ATENDIMENTO', setoresDoEscopo: null },
