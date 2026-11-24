@@ -91,6 +91,51 @@
         ],
         "description": "Código do erro. Cada um tem o seu status HTTP; código novo só entra combinado com o front."
       },
+      "ComentarioRecente": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "respostaId": {
+            "type": "integer"
+          },
+          "tipo": {
+            "$ref": "#/components/schemas/TipoComentario"
+          },
+          "texto": {
+            "type": "string"
+          },
+          "setor": {
+            "type": "string",
+            "description": "O nome do setor da avaliação."
+          },
+          "dataAtendimento": {
+            "type": "string",
+            "format": "date",
+            "description": "O dia do atendimento, em AAAA-MM-DD."
+          },
+          "enviadoEm": {
+            "type": "string",
+            "format": "date-time",
+            "description": "O instante do envio da avaliação, em UTC."
+          },
+          "classificacao": {
+            "$ref": "#/components/schemas/Classificacao"
+          }
+        },
+        "required": [
+          "id",
+          "respostaId",
+          "tipo",
+          "texto",
+          "setor",
+          "dataAtendimento",
+          "enviadoEm",
+          "classificacao"
+        ],
+        "description": "Um comentário deixado depois de uma avaliação."
+      },
       "Complemento": {
         "type": "object",
         "properties": {
@@ -267,6 +312,46 @@
         ],
         "description": "Um ponto por dia, por semana (de segunda a domingo) ou por mês."
       },
+      "IndicadorCategoria": {
+        "type": "object",
+        "properties": {
+          "categoriaId": {
+            "type": "integer"
+          },
+          "categoria": {
+            "type": "string",
+            "description": "O nome da categoria, também se ela estiver desativada."
+          },
+          "media": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "Média das notas de 1 a 5, com uma casa decimal.",
+            "example": 4.3
+          },
+          "percentual45": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "% de notas 4 e 5, arredondado, de 0 a 100.",
+            "example": 82
+          },
+          "total": {
+            "type": "integer",
+            "description": "Notas de 1 a 5 da categoria no período."
+          }
+        },
+        "required": [
+          "categoriaId",
+          "categoria",
+          "media",
+          "percentual45",
+          "total"
+        ],
+        "description": "As notas de 1 a 5 de uma categoria no período, de todos os setores. Só vêm as categorias com notas, então `media` e `percentual45` nunca vêm `null` nesta rota."
+      },
       "ItemEnvio": {
         "type": "object",
         "properties": {
@@ -290,6 +375,47 @@
           "perguntaId"
         ],
         "description": "A resposta de uma pergunta. A pergunta pulada não vem."
+      },
+      "ItemRanking": {
+        "type": "object",
+        "properties": {
+          "setorId": {
+            "type": "integer"
+          },
+          "setor": {
+            "type": "string"
+          },
+          "categoriaId": {
+            "type": "integer"
+          },
+          "categoria": {
+            "type": "string"
+          },
+          "media": {
+            "type": "number",
+            "description": "Média das notas de 1 a 5, com uma casa decimal.",
+            "example": 4.3
+          },
+          "percentual45": {
+            "type": "integer",
+            "description": "% de notas 4 e 5, arredondado, de 0 a 100.",
+            "example": 82
+          },
+          "total": {
+            "type": "integer",
+            "description": "Notas de 1 a 5 do ponto no período, 5 ou mais."
+          }
+        },
+        "required": [
+          "setorId",
+          "setor",
+          "categoriaId",
+          "categoria",
+          "media",
+          "percentual45",
+          "total"
+        ],
+        "description": "Um ponto avaliado: um setor numa categoria."
       },
       "Meta": {
         "type": "object",
@@ -581,6 +707,30 @@
           "total"
         ],
         "description": "Um ponto da evolução do NPS."
+      },
+      "Ranking": {
+        "type": "object",
+        "properties": {
+          "melhores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemRanking"
+            },
+            "description": "Até 3 pontos, do mais bem avaliado para baixo."
+          },
+          "piores": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ItemRanking"
+            },
+            "description": "Até 3 pontos, do pior para cima, entre os que não estão em `melhores`: com poucos pontos avaliados, a lista fica curta ou vazia."
+          }
+        },
+        "required": [
+          "melhores",
+          "piores"
+        ],
+        "description": "Onde o hospital está melhor e onde está pior."
       },
       "RespostaCriada": {
         "type": "object",
@@ -5946,6 +6096,677 @@
                   "erro": {
                     "codigo": "SEM_PERMISSAO",
                     "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/categorias": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Média e % de notas 4 e 5 de cada categoria",
+        "description": "As notas de 1 a 5 de cada categoria, somando os setores, na ordem das categorias. Só vêm as categorias com notas no período, também as desativadas; a categoria de cada nota é a da pergunta no momento da resposta. Os filtros são os mesmos em todos os blocos: o período (`inicio` e `fim`, incluídos) comparado com a `base` (o dia do atendimento ou o dia do envio em Brasília), o setor, o turno e o canal. Super Admin e Ouvidoria veem todos os setores; o Gestor e o Visualizador, só os seus, mesmo sem pedir um setor.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": true,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": true,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": true,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "As notas de cada categoria.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "categoriaId": 1,
+                      "categoria": "Recepção",
+                      "media": 4.4,
+                      "percentual45": 86,
+                      "total": 212
+                    },
+                    {
+                      "categoriaId": 2,
+                      "categoria": "Tempo de espera",
+                      "media": 3.1,
+                      "percentual45": 41,
+                      "total": 198
+                    },
+                    {
+                      "categoriaId": 4,
+                      "categoria": "Limpeza",
+                      "media": 4.6,
+                      "percentual45": 91,
+                      "total": 150
+                    }
+                  ]
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/IndicadorCategoria"
+                      }
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: sem `inicio`, `fim` ou `base`; data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId` ou `canal` fora dos valores aceitos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "fim",
+                        "mensagem": "A data final precisa ser igual ou depois da inicial"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: o Gestor ou o Visualizador pediu um `setorId` que não é seu, ou a pessoa está com a senha provisória. Os quatro perfis têm `dashboard:ver`.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/ranking": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Melhores e piores pontos (setor e categoria)",
+        "description": "Até 3 pontos em cada lista, só os com 5 notas de 1 a 5 ou mais no período. A ordem é a da média, depois a do % de notas 4 e 5 e, no empate, a do ponto com mais notas. Os piores saem dos que não estão nos melhores, então nenhum ponto aparece nas duas listas, e com poucos pontos a lista dos piores fica curta ou vazia. Os filtros são os mesmos em todos os blocos: o período (`inicio` e `fim`, incluídos) comparado com a `base` (o dia do atendimento ou o dia do envio em Brasília), o setor, o turno e o canal. Super Admin e Ouvidoria veem todos os setores; o Gestor e o Visualizador, só os seus, mesmo sem pedir um setor.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": true,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": true,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": true,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Os melhores e os piores pontos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": {
+                    "melhores": [
+                      {
+                        "setorId": 3,
+                        "setor": "Pediatria",
+                        "categoriaId": 4,
+                        "categoria": "Limpeza",
+                        "media": 4.8,
+                        "percentual45": 96,
+                        "total": 25
+                      },
+                      {
+                        "setorId": 1,
+                        "setor": "Pronto Atendimento",
+                        "categoriaId": 1,
+                        "categoria": "Recepção",
+                        "media": 4.5,
+                        "percentual45": 90,
+                        "total": 61
+                      }
+                    ],
+                    "piores": [
+                      {
+                        "setorId": 1,
+                        "setor": "Pronto Atendimento",
+                        "categoriaId": 2,
+                        "categoria": "Tempo de espera",
+                        "media": 2.6,
+                        "percentual45": 22,
+                        "total": 58
+                      }
+                    ]
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Ranking"
+                    }
+                  },
+                  "required": [
+                    "data"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: sem `inicio`, `fim` ou `base`; data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId` ou `canal` fora dos valores aceitos.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "fim",
+                        "mensagem": "A data final precisa ser igual ou depois da inicial"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: o Gestor ou o Visualizador pediu um `setorId` que não é seu, ou a pessoa está com a senha provisória. Os quatro perfis têm `dashboard:ver`.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem acesso a este setor.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "`ERRO_INTERNO`: erro inesperado. A mensagem é sempre a mesma, e o detalhe fica só no log.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "ERRO_INTERNO",
+                    "mensagem": "Erro inesperado. Tente de novo em instantes.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/dashboard/comentarios": {
+      "get": {
+        "tags": [
+          "Dashboard"
+        ],
+        "summary": "Comentários recentes",
+        "description": "Os comentários deixados depois das avaliações do período, do envio mais recente para o mais antigo, 8 por página se o pedido não disser outro número; `meta.total` conta todas as páginas. O `tipo` mostra só elogios, reclamações, sugestões ou outros. Exige também `comentarios:ver`, que o Visualizador não tem. Os filtros são os mesmos em todos os blocos: o período (`inicio` e `fim`, incluídos) comparado com a `base` (o dia do atendimento ou o dia do envio em Brasília), o setor, o turno e o canal. Super Admin e Ouvidoria veem todos os setores; o Gestor e o Visualizador, só os seus, mesmo sem pedir um setor.",
+        "security": [
+          {
+            "tokenAcesso": []
+          }
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+              "example": "2026-11-01"
+            },
+            "required": true,
+            "description": "Primeiro dia do período, em AAAA-MM-DD, incluído.",
+            "name": "inicio",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+              "example": "2026-11-30"
+            },
+            "required": true,
+            "description": "Último dia do período, em AAAA-MM-DD, incluído; igual ou depois do início.",
+            "name": "fim",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/BaseData"
+            },
+            "required": true,
+            "description": "`ATENDIMENTO` compara o período com o dia do atendimento; `ENVIO`, com o dia do envio da avaliação no horário de Brasília (uma resposta enviada às 23h30 do dia 10 conta no dia 10).",
+            "name": "base",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403."
+            },
+            "required": false,
+            "description": "Só este setor. Sem ele, todos os que a pessoa enxerga; o Gestor e o Visualizador que pedem um setor que não é seu recebem 403.",
+            "name": "setorId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "exclusiveMinimum": 0,
+              "maximum": 2147483647,
+              "example": 1,
+              "description": "Só as respostas deste turno."
+            },
+            "required": false,
+            "description": "Só as respostas deste turno.",
+            "name": "turnoId",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/Canal"
+            },
+            "required": false,
+            "description": "`WEB` no celular ou no computador; `TOTEM` no aparelho fixo do setor.",
+            "name": "canal",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "$ref": "#/components/schemas/TipoComentario"
+            },
+            "required": false,
+            "name": "tipo",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            },
+            "required": false,
+            "name": "pagina",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 8
+            },
+            "required": false,
+            "name": "porPagina",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Os comentários da página.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "data": [
+                    {
+                      "id": 91,
+                      "respostaId": 845,
+                      "tipo": "ELOGIO",
+                      "texto": "A equipe da recepção foi muito atenciosa com a minha mãe.",
+                      "setor": "Pronto Atendimento",
+                      "dataAtendimento": "2026-11-10",
+                      "enviadoEm": "2026-11-10T14:22:00.000Z",
+                      "classificacao": "NORMAL"
+                    },
+                    {
+                      "id": 90,
+                      "respostaId": 842,
+                      "tipo": "RECLAMACAO",
+                      "texto": "Esperei mais de duas horas sem nenhuma informação.",
+                      "setor": "Pronto Atendimento",
+                      "dataAtendimento": "2026-11-10",
+                      "enviadoEm": "2026-11-10T13:05:00.000Z",
+                      "classificacao": "BAIXA"
+                    }
+                  ],
+                  "meta": {
+                    "pagina": 1,
+                    "porPagina": 8,
+                    "total": 2
+                  }
+                },
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ComentarioRecente"
+                      }
+                    },
+                    "meta": {
+                      "$ref": "#/components/schemas/Meta"
+                    }
+                  },
+                  "required": [
+                    "data",
+                    "meta"
+                  ]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "`VALIDACAO`: sem `inicio`, `fim` ou `base`; data fora do formato AAAA-MM-DD ou que não existe; `fim` antes de `inicio`; ou `base`, `setorId`, `turnoId` ou `canal` fora dos valores aceitos; ou `tipo`, `pagina` ou `porPagina` fora dos valores aceitos (`porPagina` de 1 a 100).",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "VALIDACAO",
+                    "mensagem": "Dados inválidos",
+                    "detalhes": [
+                      {
+                        "campo": "tipo",
+                        "mensagem": "Escolha o tipo do comentário"
+                      }
+                    ],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "`NAO_AUTENTICADO`: sem login, com a sessão expirada ou com o usuário inativo.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "NAO_AUTENTICADO",
+                    "mensagem": "Sua sessão terminou. Entre de novo.",
+                    "detalhes": [],
+                    "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
+                  }
+                },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "`SEM_PERMISSAO`: sem a permissão `comentarios:ver` (o Visualizador não a tem), num `setorId` que não é da pessoa ou com a senha provisória.",
+            "content": {
+              "application/json": {
+                "example": {
+                  "erro": {
+                    "codigo": "SEM_PERMISSAO",
+                    "mensagem": "Você não tem permissão para isso.",
                     "detalhes": [],
                     "requestId": "01JC9W2K7QXZ4N5M8R3T6V0B1D"
                   }
