@@ -8,10 +8,10 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import { createApp } from '../../src/app'
 import { prisma } from '../../src/database/prisma'
 import { authService } from '../../src/modules/auth/auth.service'
-import { SEM_DADOS } from '../../src/modules/exportacao/exportacao.planilhas'
+import { SEM_DADOS } from '../../src/modules/exportacao/exportacao.resumo'
 import { exportacaoRepository } from '../../src/modules/exportacao/exportacao.repository'
 import { TIPO_XLSX } from '../../src/modules/exportacao/exportacao.schemas'
-import { ACOES_DA_EXPORTACAO, exportacaoService } from '../../src/modules/exportacao/exportacao.service'
+import { exportacaoService } from '../../src/modules/exportacao/exportacao.service'
 import type { Perfil } from '../../src/shared/constants/perfis'
 import type { Permissao } from '../../src/shared/constants/permissoes'
 import { DownloadInterrompido, Saida } from '../../src/shared/http/download'
@@ -865,7 +865,7 @@ describe('auditoria das exportações', () => {
     ).toEqual([
       {
         usuarioId: visualizador.id,
-        acao: ACOES_DA_EXPORTACAO.resumo,
+        acao: 'exportacao_de_resumo',
         entidade: 'respostas',
         entidadeId: null,
         ip: '203.0.113.7',
@@ -877,7 +877,7 @@ describe('auditoria das exportações', () => {
       },
       {
         usuarioId: ouvidoria.id,
-        acao: ACOES_DA_EXPORTACAO.respostas,
+        acao: 'exportacao_de_respostas',
         entidade: 'respostas',
         entidadeId: null,
         ip: '203.0.113.8',
@@ -896,7 +896,7 @@ describe('auditoria das exportações', () => {
       },
       {
         usuarioId: gestor.id,
-        acao: ACOES_DA_EXPORTACAO.respostas,
+        acao: 'exportacao_de_respostas',
         entidade: 'respostas',
         entidadeId: null,
         ip: expect.any(String),
