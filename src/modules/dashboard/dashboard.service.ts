@@ -93,7 +93,7 @@ export const dashboardService = {
 
   /**
    * A média e o % de notas 4 e 5 de cada ponto (um setor numa categoria) com notas no período, sem ordem e sem
-   * o mínimo de notas. É a base do ranking, dos destaques da TV e das exportações.
+   * o mínimo de notas. É a base do ranking e dos destaques da TV.
    */
   async pontosAvaliados(
     filtros: FiltrosDoPainel,
