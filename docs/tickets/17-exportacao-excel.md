@@ -6,14 +6,14 @@
 
 **Bloqueado por:** 14 — Dashboard: categorias, melhores e piores pontos e comentários; 15 — Respostas e pedidos de retorno no painel
 
-**Status:** ready-for-agent
+**Status:** done
 
 **Critérios de aceite:**
 
-- [ ] `GET /exportacoes/resumo.xlsx` exige `exportacao:resumo` e gera uma planilha com os filtros aplicados, os indicadores do resumo, o NPS por setor e as médias por categoria.
-- [ ] `GET /exportacoes/respostas.xlsx` exige `exportacao:detalhada` e gera as abas Resumo (indicadores e filtros aplicados), Respostas (uma linha por envio), Itens (uma linha por pergunta respondida) e Comentários.
-- [ ] O telefone completo só entra no arquivo detalhado para quem tem `contatos:ver`; para os demais, a coluna nem existe.
-- [ ] Os dois arquivos aceitam os mesmos filtros e respeitam o mesmo escopo do dashboard; setor fora do escopo devolve 403.
-- [ ] O arquivo é gerado na hora e enviado em streaming, com o nome no cabeçalho de download (`fhdod-resumo-<inicio>-a-<fim>.xlsx` e `fhdod-respostas-<inicio>-a-<fim>.xlsx`), cabeçalhos em português e datas e números no formato brasileiro.
-- [ ] Cada exportação vai para a auditoria, com os filtros usados e se levou telefones.
-- [ ] Testes de integração: permissões, escopo, a coluna de telefone por perfil e o conteúdo das abas.
+- [x] `GET /exportacoes/resumo.xlsx` exige `exportacao:resumo` e gera uma planilha com os filtros aplicados, os indicadores do resumo, o NPS por setor e as médias por categoria.
+- [x] `GET /exportacoes/respostas.xlsx` exige `exportacao:detalhada` e gera as abas Resumo (indicadores e filtros aplicados), Respostas (uma linha por envio), Itens (uma linha por pergunta respondida) e Comentários.
+- [x] O telefone completo só entra no arquivo detalhado para quem tem `contatos:ver`; para os demais, a coluna nem existe.
+- [x] Os dois arquivos aceitam os mesmos filtros e respeitam o mesmo escopo do dashboard; setor fora do escopo devolve 403.
+- [x] O arquivo é gerado na hora e enviado em streaming, com o nome no cabeçalho de download (`fhdod-resumo-<inicio>-a-<fim>.xlsx` e `fhdod-respostas-<inicio>-a-<fim>.xlsx`), cabeçalhos em português e datas e números no formato brasileiro.
+- [x] Cada exportação vai para a auditoria, com os filtros usados e se levou telefones.
+- [x] Testes de integração: permissões, escopo, a coluna de telefone por perfil e o conteúdo das abas.
