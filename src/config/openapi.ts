@@ -59,7 +59,7 @@ const DESCRICAO = `Contrato da API do Sistema de Satisfação Hospitalar da FHDO
 - Erro: sempre o componente \`Erro\`, \`{ "erro": { "codigo", "mensagem", "detalhes", "requestId" } }\`. A \`mensagem\` é escrita para quem está na tela.
 - Toda resposta traz o cabeçalho \`X-Request-Id\`, o mesmo \`requestId\` dos erros e do log.
 - Rotas do painel: token de acesso em \`Authorization: Bearer <token>\`. Sem ele, vencido ou com o usuário inativo, 401 \`NAO_AUTENTICADO\`; sem a permissão ou fora dos setores da pessoa, 403 \`SEM_PERMISSAO\`. Com a senha provisória, as rotas do painel respondem 403 até a troca em \`/auth/senha\`; \`/auth/me\` funciona.
-- Rotas \`/publico\`: a pesquisa do paciente, sem login.`
+- Rotas \`/publico\`: a pesquisa do paciente, sem login. O complemento da avaliação leva o token devolvido pelo envio no cabeçalho \`X-Complemento-Token\`.`
 
 export function gerarDocumentoOpenApi() {
   const registry = new OpenAPIRegistry()
