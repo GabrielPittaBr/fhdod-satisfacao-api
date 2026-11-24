@@ -5,6 +5,13 @@ import {
   periodoEmOrdem,
   periodoValido,
 } from '../../shared/http/filtros-do-painel'
+import { paginacaoSchema } from '../../shared/http/pagination'
+import { NOTA_BOA_A_PARTIR_DE } from '../../shared/rules/notas-da-escala'
+import { MINIMO_DE_NOTAS_DO_PONTO, TAMANHO_DO_RANKING } from '../../shared/rules/ranking-de-pontos'
+import { classificacaoSchema, tipoComentarioSchema } from '../pesquisa/pesquisa.schemas'
+
+/** Comentários por página, no dashboard, quando o pedido não diz quantos. */
+export const COMENTARIOS_POR_PAGINA = 8
 
 /** Como a evolução agrupa as respostas. A semana começa na segunda, como a do `date_trunc` do PostgreSQL. */
 export const GRANULARIDADES = ['DIA', 'SEMANA', 'MES'] as const
@@ -89,6 +96,84 @@ export const pontoEvolucaoSchema = z
 
 export type PontoEvolucao = z.output<typeof pontoEvolucaoSchema>
 
+const mediaSchema = z.number().meta({
+  description: 'Média das notas de 1 a 5, com uma casa decimal.',
+  example: 4.3,
+})
+
+const percentual45Schema = z
+  .number()
+  .int()
+  .meta({ description: `% de notas ${NOTA_BOA_A_PARTIR_DE} e 5, arredondado, de 0 a 100.`, example: 82 })
+
+export const indicadorCategoriaSchema = z
+  .object({
+    categoriaId: z.number().int(),
+    categoria: z.string().meta({ description: 'O nome da categoria, também se ela estiver desativada.' }),
+    media: mediaSchema.nullable().meta({ description: 'Média das notas de 1 a 5, com uma casa decimal.' }),
+    percentual45: percentual45Schema.nullable().meta({
+      description: `% de notas ${NOTA_BOA_A_PARTIR_DE} e 5, arredondado, de 0 a 100.`,
+    }),
+    total: z.number().int().meta({ description: 'Notas de 1 a 5 da categoria no período.' }),
+  })
+  .meta({
+    id: 'IndicadorCategoria',
+    description:
+      'As notas de 1 a 5 de uma categoria no período, de todos os setores. Só vêm as categorias com notas, ' +
+      'então `media` e `percentual45` nunca vêm `null` nesta rota.',
+  })
+
+export type IndicadorCategoria = z.output<typeof indicadorCategoriaSchema>
+
+export const itemRankingSchema = z
+  .object({
+    setorId: z.number().int(),
+    setor: z.string(),
+    categoriaId: z.number().int(),
+    categoria: z.string(),
+    media: mediaSchema,
+    percentual45: percentual45Schema,
+    total: z
+      .number()
+      .int()
+      .meta({
+        description: `Notas de 1 a 5 do ponto no período, ${MINIMO_DE_NOTAS_DO_PONTO} ou mais.`,
+      }),
+  })
+  .meta({ id: 'ItemRanking', description: 'Um ponto avaliado: um setor numa categoria.' })
+
+export type ItemRanking = z.output<typeof itemRankingSchema>
+
+export const rankingSchema = z
+  .object({
+    melhores: z.array(itemRankingSchema).meta({
+      description: `Até ${TAMANHO_DO_RANKING} pontos, do mais bem avaliado para baixo.`,
+    }),
+    piores: z.array(itemRankingSchema).meta({
+      description:
+        `Até ${TAMANHO_DO_RANKING} pontos, do pior para cima, entre os que não estão em \`melhores\`: com ` +
+        'poucos pontos avaliados, a lista fica curta ou vazia.',
+    }),
+  })
+  .meta({ id: 'Ranking', description: 'Onde o hospital está melhor e onde está pior.' })
+
+export type Ranking = z.output<typeof rankingSchema>
+
+export const comentarioRecenteSchema = z
+  .object({
+    id: z.number().int(),
+    respostaId: z.number().int(),
+    tipo: tipoComentarioSchema,
+    texto: z.string(),
+    setor: z.string().meta({ description: 'O nome do setor da avaliação.' }),
+    dataAtendimento: z.iso.date().meta({ description: 'O dia do atendimento, em AAAA-MM-DD.' }),
+    enviadoEm: z.iso.datetime().meta({ description: 'O instante do envio da avaliação, em UTC.' }),
+    classificacao: classificacaoSchema,
+  })
+  .meta({ id: 'ComentarioRecente', description: 'Um comentário deixado depois de uma avaliação.' })
+
+export type ComentarioRecente = z.output<typeof comentarioRecenteSchema>
+
 // ---------- Requisições ----------
 
 export const granularidadeSchema = z.enum(GRANULARIDADES, { error: MENSAGEM_GRANULARIDADE }).meta({
@@ -142,3 +227,20 @@ export const buscarNpsPorSetor = { query: filtrosDoDashboardSchema }
 export const buscarEvolucao = { query: evolucaoQuery }
 
 export type FiltrosDaEvolucao = z.output<typeof evolucaoQuery>
+
+export const buscarCategorias = { query: filtrosDoDashboardSchema }
+
+export const buscarRanking = { query: filtrosDoDashboardSchema }
+
+const comentariosQuery = z
+  .object({
+    ...CAMPOS_DOS_FILTROS_DO_DASHBOARD,
+    tipo: tipoComentarioSchema.optional(),
+    pagina: paginacaoSchema.shape.pagina,
+    porPagina: paginacaoSchema.shape.porPagina.unwrap().default(COMENTARIOS_POR_PAGINA),
+  })
+  .superRefine(periodoEmOrdem)
+
+export const buscarComentarios = { query: comentariosQuery }
+
+export type FiltrosDosComentarios = z.output<typeof comentariosQuery>
