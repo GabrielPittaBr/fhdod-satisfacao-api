@@ -6,6 +6,7 @@ import { documentarDashboard } from '../modules/dashboard/dashboard.docs'
 import { documentarHealth } from '../modules/health/health.docs'
 import { documentarPerguntas } from '../modules/perguntas/perguntas.docs'
 import { documentarPesquisa } from '../modules/pesquisa/pesquisa.docs'
+import { documentarRespostas } from '../modules/respostas/respostas.docs'
 import { documentarSetores } from '../modules/setores/setores.docs'
 import { documentarTurnos } from '../modules/turnos/turnos.docs'
 import { documentarUsuarios } from '../modules/usuarios/usuarios.docs'
@@ -30,6 +31,7 @@ const MODULOS: ((registry: OpenAPIRegistry) => void)[] = [
   documentarTurnos,
   documentarPerguntas,
   documentarUsuarios,
+  documentarRespostas,
   documentarDashboard,
 ]
 
