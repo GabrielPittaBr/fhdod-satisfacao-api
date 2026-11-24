@@ -3,6 +3,7 @@ import {
   dataDoDia,
   diaDoCalendario,
   hojeEmBrasilia,
+  horarioDeBrasilia,
   primeiroDiaDoMes,
   segundaDaSemana,
   somarDias,
@@ -12,6 +13,21 @@ describe('hojeEmBrasilia', () => {
   it('vira o dia à meia-noite de Brasília (03:00 em UTC), e não à meia-noite de UTC', () => {
     expect(hojeEmBrasilia(new Date('2026-11-24T02:59:59Z'))).toBe('2026-11-23')
     expect(hojeEmBrasilia(new Date('2026-11-24T03:00:00Z'))).toBe('2026-11-24')
+  })
+})
+
+describe('horarioDeBrasilia', () => {
+  it('põe em UTC os números do relógio de Brasília, três horas antes, também na virada do dia', () => {
+    expect(horarioDeBrasilia(new Date('2026-11-11T02:30:00.250Z')).toISOString()).toBe(
+      '2026-11-10T23:30:00.250Z',
+    )
+    expect(horarioDeBrasilia(new Date('2026-11-24T03:00:00Z')).toISOString()).toBe('2026-11-24T00:00:00.000Z')
+    expect(horarioDeBrasilia(new Date('2026-12-31T23:59:59Z')).toISOString()).toBe('2026-12-31T20:59:59.000Z')
+  })
+
+  it('segue o fuso de cada data: no horário de verão de 2018, Brasília estava duas horas antes de UTC', () => {
+    expect(horarioDeBrasilia(new Date('2018-12-01T12:00:00Z')).toISOString()).toBe('2018-12-01T10:00:00.000Z')
+    expect(horarioDeBrasilia(new Date('2018-06-01T12:00:00Z')).toISOString()).toBe('2018-06-01T09:00:00.000Z')
   })
 })
 
