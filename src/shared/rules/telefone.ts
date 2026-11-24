@@ -21,6 +21,18 @@ export function finalDoTelefone(digitos: string): string {
   return digitos.slice(-4)
 }
 
+/** O DDD, o começo e os 4 últimos dígitos de um telefone como o banco o cifra: só os dígitos, 10 ou 11. */
+const PARTES_DO_TELEFONE = /^(\d{2})(\d{4,5})(\d{4})$/
+
+/**
+ * O número completo como se lê e se disca, "(51) 99999-0042" no celular e "(51) 3333-0042" no fixo, a partir dos
+ * dígitos decifrados. Um texto fora desse formato volta como veio: na planilha, nenhum número some.
+ */
+export function formatarTelefone(digitos: string): string {
+  const partes = PARTES_DO_TELEFONE.exec(digitos)
+  return partes ? `(${partes[1]}) ${partes[2]}-${partes[3]}` : digitos
+}
+
 /** O que a tela mostra no lugar dos dígitos escondidos. */
 export const DIGITOS_ESCONDIDOS = '••••'
 

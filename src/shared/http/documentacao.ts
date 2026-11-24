@@ -81,6 +81,27 @@ export function respostaJson(descricao: string, schema: ZodType, exemplo?: unkno
   }
 }
 
+/**
+ * Resposta com um arquivo para baixar, gerado na hora: o corpo é o arquivo, e o nome vem no `Content-Disposition`
+ * (o `enviarArquivo`, de `src/shared/http/download.ts`).
+ */
+export function respostaArquivo(descricao: string, tipo: string, nomeDeExemplo: string): ResponseConfig {
+  return {
+    description: descricao,
+    headers: {
+      'Content-Disposition': {
+        description: 'O nome com que o arquivo deve ser salvo.',
+        schema: { type: 'string', example: `attachment; filename=${nomeDeExemplo}` },
+      },
+      'Cache-Control': {
+        description: 'O arquivo pode ter dados pessoais: não fica guardado em cache.',
+        schema: { type: 'string', example: 'no-store' },
+      },
+    },
+    content: { [tipo]: { schema: { type: 'string', format: 'binary' } } },
+  }
+}
+
 export type RotaDocumentada = Omit<RouteConfig, 'request' | 'responses'> & {
   /** Os mesmos esquemas passados ao `validate` da rota. Com eles, a rota ganha também o 400 `VALIDACAO`. */
   requisicao?: EsquemasDaRota
