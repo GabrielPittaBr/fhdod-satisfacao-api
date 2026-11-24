@@ -92,17 +92,19 @@ export const CAMPOS_DOS_FILTROS_DO_DASHBOARD = {
 export const filtrosDoDashboardSchema = z.object(CAMPOS_DOS_FILTROS_DO_DASHBOARD).superRefine(periodoEmOrdem)
 
 /**
- * Os mesmos filtros com tudo opcional, para as listas de respostas e as exportações: sem `inicio` ou sem `fim`,
- * o período fica aberto daquele lado. Sem `base`, vale a data do atendimento.
+ * Os mesmos campos com tudo opcional, para as listas de respostas e de pedidos de retorno e as exportações: sem
+ * `inicio` ou sem `fim`, o período fica aberto daquele lado. Sem `base`, vale a data do atendimento. Uma lista
+ * que recebe mais alguma coisa, como a paginação, estende estes campos e repete o `periodoEmOrdem`.
  */
-export const filtrosDoPainelSchema = z
-  .object({
-    ...CAMPOS_DOS_FILTROS_DO_DASHBOARD,
-    inicio: CAMPOS.inicio.optional(),
-    fim: CAMPOS.fim.optional(),
-    base: baseDataSchema.default('ATENDIMENTO'),
-  })
-  .superRefine(periodoEmOrdem)
+export const CAMPOS_DOS_FILTROS_DO_PAINEL = {
+  ...CAMPOS_DOS_FILTROS_DO_DASHBOARD,
+  inicio: CAMPOS.inicio.optional(),
+  fim: CAMPOS.fim.optional(),
+  base: baseDataSchema.default('ATENDIMENTO'),
+}
+
+/** Os filtros do painel com tudo opcional: o que as listas e as exportações aceitam. */
+export const filtrosDoPainelSchema = z.object(CAMPOS_DOS_FILTROS_DO_PAINEL).superRefine(periodoEmOrdem)
 
 /** Os filtros já validados: o que o `condicoesDoPainel` recebe, do dashboard ou de qualquer outra lista. */
 export type FiltrosDoPainel = z.output<typeof filtrosDoPainelSchema>
