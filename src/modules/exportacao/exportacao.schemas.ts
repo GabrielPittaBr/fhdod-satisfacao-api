@@ -3,10 +3,15 @@ import { filtrosDoDashboardSchema } from '../../shared/http/filtros-do-painel'
 /** O `Content-Type` de uma planilha do Excel (.xlsx). */
 export const TIPO_XLSX = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
-/** Os arquivos da exportação em Excel: o resumo, para todos os perfis, e as respostas, o detalhado. */
+/** O `Content-Type` do PDF. */
+export const TIPO_PDF = 'application/pdf'
+
+/** Os arquivos da exportação: o resumo, para todos os perfis, em Excel e em PDF, e as respostas, o detalhado. */
 export const ARQUIVOS = ['resumo', 'respostas'] as const
 
 export type Arquivo = (typeof ARQUIVOS)[number]
+
+export type Extensao = 'xlsx' | 'pdf'
 
 /**
  * Linhas de dados de uma aba, no máximo: o Excel abre até 1.048.576 linhas por aba, a do cabeçalho incluída.
@@ -14,9 +19,16 @@ export type Arquivo = (typeof ARQUIVOS)[number]
  */
 export const LINHAS_POR_ABA = 1_048_575
 
+/** Páginas do resumo em PDF, no máximo. */
+export const PAGINAS_DO_PDF = 2
+
 /** O nome do arquivo no download, com o período: `fhdod-resumo-2026-11-01-a-2026-11-30.xlsx`. */
-export function nomeDaPlanilha(arquivo: Arquivo, { inicio, fim }: { inicio: string; fim: string }): string {
-  return `fhdod-${arquivo}-${inicio}-a-${fim}.xlsx`
+export function nomeDoArquivo(
+  arquivo: Arquivo,
+  { inicio, fim }: { inicio: string; fim: string },
+  extensao: Extensao,
+): string {
+  return `fhdod-${arquivo}-${inicio}-a-${fim}.${extensao}`
 }
 
 // ---------- Requisições ----------
@@ -25,5 +37,7 @@ export function nomeDaPlanilha(arquivo: Arquivo, { inicio, fim }: { inicio: stri
 // está na tela, e o período dá o nome do arquivo.
 
 export const exportarResumo = { query: filtrosDoDashboardSchema }
+
+export const exportarResumoEmPdf = { query: filtrosDoDashboardSchema }
 
 export const exportarRespostas = { query: filtrosDoDashboardSchema }
