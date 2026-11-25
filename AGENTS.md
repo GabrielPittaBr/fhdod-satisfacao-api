@@ -368,6 +368,7 @@ O sistema inteiro sobe num servidor com os dois repositórios lado a lado, pelo 
 - **Scripts:** POSIX `sh`, para o busybox do Alpine (sem bash), com fim de linha LF, que o `.gitattributes` garante também no Windows.
 - **Logs:** `json-file` com rotação, 5 arquivos de 10 MB por container, na âncora `x-logs`; um serviço novo usa `logging: *logs`.
 - **Nome do projeto:** `fhdod-satisfacao-prod`, diferente do compose de desenvolvimento (`fhdod-satisfacao`), para os dois rodarem na mesma máquina sem dividir containers nem volumes. Para testar o compose de produção na máquina, use `DOMAIN=:80` e um `--env-file` fora do repositório, como no registro do ticket 19.
+- **Banco fora do servidor:** o `infra/docker-compose.banco-externo.yml` entra por cima do de produção (os dois no `-f`, ou no `COMPOSE_FILE`) quando o banco fica num serviço de fora, como o Supabase. A API usa o `DATABASE_URL` do `infra/.env`, sem esperar o `postgres`, e o `postgres` e o `backup` ficam no perfil `banco-local`, que ninguém liga. O `POSTGRES_PASSWORD` e o `BACKUP_DESTINO` continuam obrigatórios, porque o compose interpola o arquivo de produção inteiro antes de juntar os dois. No Supabase, a URL é a do Session pooler (a conexão direta é só IPv6), com `sslmode=no-verify`: o `pg` trata o `require` como `verify-full`, e o certificado do Supabase é de uma autoridade própria. O `tests/producao.test.ts` confere que o arquivo só troca a URL do banco.
 
 ## Onde estão as coisas
 
@@ -390,7 +391,7 @@ O sistema inteiro sobe num servidor com os dois repositórios lado a lado, pelo 
 | Tickets | [`docs/tickets/`](docs/tickets/) e as issues do GitHub |
 | Registros das entregas | [`docs/registros/`](docs/registros/) |
 | Contrato da API (OpenAPI) | [`openapi.json`](openapi.json), montado em [`src/config/openapi.ts`](src/config/openapi.ts); com a API rodando, o Swagger em `/api/docs` |
-| Imagem da API, compose de produção e backup | [`Dockerfile`](Dockerfile), [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml), [`infra/.env.example`](infra/.env.example) e [`infra/backup/`](infra/backup/) |
+| Imagem da API, compose de produção, banco fora do servidor e backup | [`Dockerfile`](Dockerfile), [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml), [`infra/docker-compose.banco-externo.yml`](infra/docker-compose.banco-externo.yml), [`infra/.env.example`](infra/.env.example) e [`infra/backup/`](infra/backup/) |
 | CI e modelo de pull request | [`.github/`](.github/) |
 | Configuração do Claude Code para o time | [`.claude/settings.json`](.claude/settings.json) |
 | Front-end | `../fhdod-satisfacao-web`, com o `docs/plano-frontend.md` e, depois do ticket 01 do front, o próprio `AGENTS.md` |
