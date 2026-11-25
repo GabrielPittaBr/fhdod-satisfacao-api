@@ -74,7 +74,8 @@ export type Env = z.output<typeof schema>
 
 type Variavel = keyof typeof variaveis.shape
 
-const VARIAVEIS = Object.keys(variaveis.shape) as Variavel[]
+/** Os nomes das variáveis que a API lê, na ordem do schema. O compose de produção passa cada uma à API. */
+export const VARIAVEIS = Object.keys(variaveis.shape) as Variavel[]
 
 /** O que escrever em cada variável. A mensagem de erro nunca mostra o valor, que pode ser segredo. */
 const COMO_PREENCHER: Record<Variavel, string> = {
