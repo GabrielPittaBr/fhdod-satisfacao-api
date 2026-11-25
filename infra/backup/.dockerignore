@@ -1,0 +1,4 @@
+# A imagem do backup só leva os scripts: a configuração do destino (com as credenciais) fica fora do contexto
+# do build e chega ao container pelo volume do compose.
+rclone.conf
+*.example
