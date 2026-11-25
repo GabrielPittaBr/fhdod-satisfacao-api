@@ -1,0 +1,21 @@
+# Banco fora do servidor, como no Supabase: o compose de produção sem o PostgreSQL e o backup locais. A API usa
+# o DATABASE_URL do infra/.env, e o banco e as cópias dele ficam com o serviço de fora. Na pasta da API:
+#   docker compose -f infra/docker-compose.prod.yml -f infra/docker-compose.banco-externo.yml up -d --build --wait
+# O passo a passo está no README, em "Homologação".
+#
+# O POSTGRES_PASSWORD e o BACKUP_DESTINO continuam obrigatórios no infra/.env, porque o compose lê o arquivo de
+# produção inteiro antes de juntar os dois, mas não são usados: o postgres e o backup só sobem com o perfil
+# banco-local, que ninguém liga.
+
+services:
+  api:
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?defina no infra/.env o DATABASE_URL do banco de fora}
+    # Sem esperar o postgres, que não sobe. O !reset precisa do Docker Compose 2.24 ou mais novo.
+    depends_on: !reset {}
+
+  postgres:
+    profiles: [banco-local]
+
+  backup:
+    profiles: [banco-local]
