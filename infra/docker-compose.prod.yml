@@ -1,0 +1,140 @@
+# Produção e homologação: o sistema inteiro num servidor, com um único comando, na pasta da API:
+#   docker compose -f infra/docker-compose.prod.yml up -d --build --wait
+# O passo a passo está no README, em "Produção e homologação".
+#
+#   caddy     o front, com HTTPS, e o /api repassado para a API; a imagem sai do repositório do front, ao lado
+#   api       a API; ao iniciar, aplica as migrations e o seed base e só então sobe o servidor
+#   postgres  o PostgreSQL 18, com os dados num volume e sem nenhuma porta aberta para fora
+#   backup    o pg_dump diário às 3h (Brasília), com 7 cópias diárias, 4 semanais e uma cópia fora do servidor
+#
+# As variáveis vêm do infra/.env do servidor (o modelo é o infra/.env.example), que o compose lê sozinho por
+# estar na pasta deste arquivo. Os caminhos abaixo também são relativos a esta pasta (infra/). Cada container
+# recebe só as variáveis de que precisa: os segredos da API não chegam ao Caddy nem ao backup.
+
+name: fhdod-satisfacao-prod
+
+# Logs em JSON no disco do Docker, com rotação: no máximo 5 arquivos de 10 MB por container.
+x-logs: &logs
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+services:
+  caddy:
+    build: ../../fhdod-satisfacao-web
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?defina o DOMAIN no infra/.env}
+    ports:
+      - 80:80
+      - 443:443
+      - 443:443/udp
+    volumes:
+      # Os certificados: sem o volume, cada container novo pediria outro, e o Let's Encrypt limita as emissões.
+      - caddy-dados:/data
+      - caddy-config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+    logging: *logs
+
+  api:
+    build: ..
+    restart: unless-stopped
+    # Um init de verdade no PID 1, que repassa o SIGTERM e recolhe os processos que o Prisma abre nas migrations.
+    init: true
+    # Todas as variáveis do src/config/env.ts, as do seed base e as dos dados de demonstração. Sem valor, cada
+    # uma vale o padrão do env.ts. Variável nova da API entra aqui também (o tests/producao.test.ts confere).
+    environment:
+      NODE_ENV: production
+      PORT: 3333
+      DATABASE_URL: postgresql://app:${POSTGRES_PASSWORD:?defina o POSTGRES_PASSWORD no infra/.env}@postgres:5432/satisfacao
+      CORS_ORIGIN: ${CORS_ORIGIN:?defina o CORS_ORIGIN no infra/.env}
+      LOG_LEVEL: ${LOG_LEVEL:-}
+      DOCS_ENABLED: ${DOCS_ENABLED:-}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:?defina o JWT_ACCESS_SECRET no infra/.env}
+      ACCESS_TOKEN_TTL: ${ACCESS_TOKEN_TTL:-}
+      REFRESH_TOKEN_TTL_DAYS: ${REFRESH_TOKEN_TTL_DAYS:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:?defina o ENCRYPTION_KEY no infra/.env}
+      RATE_LIMIT_ALLOWLIST: ${RATE_LIMIT_ALLOWLIST:-}
+      SEED_ADMIN_EMAIL: ${SEED_ADMIN_EMAIL:-}
+      SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
+      DEMO_PASSWORD_SUPER_ADMIN: ${DEMO_PASSWORD_SUPER_ADMIN:-}
+      DEMO_PASSWORD_GESTOR: ${DEMO_PASSWORD_GESTOR:-}
+      DEMO_PASSWORD_OUVIDORIA: ${DEMO_PASSWORD_OUVIDORIA:-}
+      DEMO_PASSWORD_VISUALIZADOR: ${DEMO_PASSWORD_VISUALIZADOR:-}
+      DEMO_PASSWORD_PRIMEIRO_ACESSO: ${DEMO_PASSWORD_PRIMEIRO_ACESSO:-}
+    # O /api/health consulta o banco: 200 com ele no ar, 503 sem ele. O Caddy só sobe com a API saudável. O
+    # prazo inicial cobre as migrations e o seed, que rodam antes do servidor.
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--spider', 'http://127.0.0.1:3333/api/health']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 2m
+      start_interval: 2s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logs
+
+  postgres:
+    image: postgres:18
+    restart: unless-stopped
+    # Em UTC e UTF-8, como o de desenvolvimento. O usuário e a senha só valem na criação do volume: para trocar
+    # a senha depois, mude-a também no banco (README, em "Produção e homologação").
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina o POSTGRES_PASSWORD no infra/.env}
+      POSTGRES_DB: satisfacao
+      POSTGRES_INITDB_ARGS: --encoding=UTF8
+      TZ: UTC
+      PGTZ: UTC
+    command: ['postgres', '-c', 'timezone=UTC', '-c', 'log_timezone=UTC']
+    # Sem ports: o banco só se alcança pela rede interna do compose, pela API e pelo backup.
+    volumes:
+      # A partir do 18, a imagem guarda os dados em /var/lib/postgresql/18/docker: o volume vai na pasta de cima.
+      - postgres-dados:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d satisfacao']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 1m
+      start_interval: 1s
+    logging: *logs
+
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    init: true
+    environment:
+      PGHOST: postgres
+      PGUSER: app
+      PGPASSWORD: ${POSTGRES_PASSWORD:?defina o POSTGRES_PASSWORD no infra/.env}
+      PGDATABASE: satisfacao
+      # As 3h do agendamento e os nomes das cópias no horário de Brasília.
+      TZ: America/Sao_Paulo
+      BACKUP_DESTINO: ${BACKUP_DESTINO:?defina o BACKUP_DESTINO no infra/.env (um caminho do rclone, ou nenhum)}
+      RCLONE_CONFIG: /etc/fhdod-backup/rclone.conf
+    volumes:
+      - backups:/backups
+      # Esta pasta do repositório, só para leitura: o rclone.conf do servidor (e a chave do SFTP, se houver).
+      - ./backup:/etc/fhdod-backup:ro
+    # Com problema se o último backup falhou ou se o último que deu certo tem mais de 26 horas.
+    healthcheck:
+      test: ['CMD', 'saude.sh']
+      interval: 5m
+      timeout: 10s
+      start_period: 10s
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logs
+
+volumes:
+  postgres-dados:
+  backups:
+  caddy-dados:
+  caddy-config:
