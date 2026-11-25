@@ -257,8 +257,14 @@ fhdod-satisfacao-api/
 │       └── permissoes.test.ts
 ├── infra/
 │   ├── docker-compose.prod.yml    # produção e homologação: caddy, api, postgres e backup
+│   ├── .env.example               # modelo do infra/.env de cada servidor
 │   └── backup/
-│       └── backup.sh              # pg_dump diário com retenção
+│       ├── Dockerfile             # PostgreSQL 18 (Alpine) com o rclone
+│       ├── agendar.sh             # roda o backup.sh todo dia às 3h
+│       ├── backup.sh              # pg_dump diário com retenção e cópia fora do servidor
+│       ├── restaurar.sh           # pg_restore num banco vazio
+│       ├── saude.sh               # healthcheck do backup
+│       └── rclone.conf.example    # modelo do destino da cópia de fora
 ├── docs/
 │   ├── adr/                       # registros curtos das decisões de arquitetura
 │   └── requisitos/                # levantamento de requisitos
@@ -1045,9 +1051,9 @@ Tudo roda em containers Docker. A mesma configuração sobe numa VPS, no servido
 | Serviço | Origem | Função |
 | --- | --- | --- |
 | caddy | `Dockerfile` do repositório web: front compilado dentro da imagem do Caddy | HTTPS, arquivos do front e proxy de `/api` |
-| api | `Dockerfile` do repositório da API | API Node.js; aplica as migrations ao iniciar |
+| api | `Dockerfile` do repositório da API | API Node.js; aplica as migrations e o seed base ao iniciar |
 | postgres | Imagem oficial do PostgreSQL 18 | Banco com volume persistente, sem porta exposta para fora |
-| backup | Script `infra/backup/backup.sh` agendado | `pg_dump` diário |
+| backup | `infra/backup/`: PostgreSQL 18 (Alpine) com o rclone e os scripts | `pg_dump` diário, com retenção e uma cópia fora do servidor |
 | worker (fase 2) | Mesma imagem da API, outro comando | Envio dos e-mails da fila |
 
 O front vira arquivos estáticos, e colocá-los na imagem do Caddy dispensa um Nginx a mais. Rodar `prisma migrate deploy` ao subir a API garante que o banco está sempre na versão do código.
@@ -1083,8 +1089,8 @@ O front vira arquivos estáticos, e colocá-los na imagem do Caddy dispensa um N
 
 1. Levar a `develop` para a `main` nos dois repositórios, com o CI aprovado e uma tag de versão. Se o contrato mudou, a API vai primeiro.
 2. No servidor, `git pull` em `fhdod-satisfacao-api` e em `fhdod-satisfacao-web`.
-3. Na pasta da API, `docker compose -f infra/docker-compose.prod.yml up -d --build`.
-4. A API aplica as migrations ao iniciar, e o Caddy renova o HTTPS sozinho.
+3. Na pasta da API, `docker compose -f infra/docker-compose.prod.yml up -d --build --wait`, com as variáveis do `infra/.env` do servidor. O `--wait` só termina com todos os serviços saudáveis.
+4. A API aplica as migrations e o seed base ao iniciar, e o Caddy renova o HTTPS sozinho.
 5. Conferir `/api/health` e responder uma pesquisa de teste.
 
 Na fase 2, o CI passa a publicar as imagens prontas, e o servidor só baixa a nova versão, sem compilar nada.

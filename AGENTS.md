@@ -333,7 +333,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | `pnpm install` | Instala as dependências, gera o cliente do Prisma e liga os hooks do Git |
 | `docker compose up -d` | Sobe o PostgreSQL 18 de desenvolvimento (porta 5432) e o de teste (porta 5433) |
 | `pnpm dev` | Roda a API em `http://localhost:3333`, recarregando a cada alteração; o Swagger fica em `/api/docs` |
-| `pnpm build` | Gera o build em `dist/server.js` |
+| `pnpm build` | Gera o build em `dist/`: a API (`server.js`) e o seed base e os dados de demonstração (`seed.js` e `demonstracao.js`), que a imagem Docker roda sem o `tsx` |
 | `pnpm start` | Roda o build |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | Checagem de tipos do TypeScript |
@@ -353,9 +353,21 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 - **Antes de cada commit**, o Husky roda o ESLint e o Prettier nos arquivos alterados (lint-staged), e o commitlint confere a mensagem: Conventional Commits, com os tipos deste arquivo e sem coautoria nem assinatura do Claude.
 - **CI:** o `.github/workflows/ci.yml` instala com o pnpm (com cache) e roda lint, tipos, testes (com um serviço PostgreSQL 18), contrato e build em todo pull request e em cada push na `develop` e na `main`. O passo do contrato roda o `pnpm openapi:exportar` e falha se o `openapi.json` mudou sem ser commitado. O modelo de PR fica em `.github/pull_request_template.md`.
 - **Swagger:** ligado em development e test e desligado em production, a não ser que `DOCS_ENABLED=true` (a homologação o liga assim).
-- **Variáveis de ambiente:** todas estão no `.env.example`, com o que cada uma faz. Uma variável nova entra no `src/config/env.ts` e no `.env.example`, no mesmo commit.
+- **Variáveis de ambiente:** todas estão no `.env.example`, com o que cada uma faz. Uma variável nova entra no `src/config/env.ts` e no `.env.example`, no mesmo commit, e também no compose de produção e no `infra/.env.example` (ver "Produção e homologação").
 - **Banco de teste:** o `postgres-teste` do compose guarda os dados só na memória e começa vazio a cada subida. Os testes nunca leem o `.env`; para usar outro banco de teste, defina `TEST_DATABASE_URL`. Antes dos testes de integração, o `tests/setup.ts` apaga o schema do banco de teste e aplica as migrations, e só faz isso num banco com "test" no nome. Os testes que gravam no banco começam com o `limparBanco()`, de `tests/helpers/banco.ts`.
 - **Reset com agente de IA:** o Prisma 7 recusa o `prisma migrate reset` (e o `pnpm db:reset`) quando quem roda é um agente de IA, e pede o consentimento de quem está usando. O setup dos testes não usa o reset, então o `pnpm test` roda igual para pessoas, agentes e o CI.
+
+## Produção e homologação
+
+O sistema inteiro sobe num servidor com os dois repositórios lado a lado, pelo `infra/docker-compose.prod.yml` (ticket 19): `docker compose -f infra/docker-compose.prod.yml up -d --build --wait`, na pasta da API. O passo a passo da publicação, do backup e da restauração está no README, em "Produção e homologação".
+
+- **Imagem da API** (`Dockerfile` e `.dockerignore`): o build no `node:26`; as dependências de produção instaladas de novo no `node:26-alpine`, porque o argon2 e o motor das migrations do Prisma têm um binário por sistema; e a imagem final no `node:26-alpine`, com o usuário `node`. Ao iniciar, roda o `prisma migrate deploy`, o `node dist/seed.js` e só então o `node dist/server.js`; se um dos dois primeiros falhar, a API não sobe. Por isso o `prisma` (o CLI) é dependência de produção, e o `pnpm build` gera também o seed e a demonstração. Nenhum `.env` entra na imagem.
+- **Variáveis:** vêm do `infra/.env` do servidor, que o compose lê sozinho por estar na pasta dele; o modelo é o `infra/.env.example`, com os comandos que geram os segredos. Cada container recebe só o que usa: os segredos da API não chegam ao Caddy nem ao backup. As obrigatórias usam `${NOME:?mensagem}`; as opcionais, `${NOME:-}`, e vazias valem o padrão do `env.ts`. Uma variável nova da API entra no `environment` da `api` e no `infra/.env.example`: o `tests/producao.test.ts` falha se uma variável do `env.ts` ou do `.env.example` não chegar à API, ou se o compose ler uma que o modelo não explica.
+- **Saúde:** a API só sobe com o PostgreSQL saudável (`pg_isready`); o compose chama o `/api/health` com o `wget` do Alpine, com um prazo inicial que cobre as migrations; e o Caddy só sobe com a API saudável. O backup tem o próprio healthcheck, o `saude.sh`.
+- **Backup** (`infra/backup/`, numa imagem `postgres:18-alpine` com o rclone, como o usuário `postgres`): o `agendar.sh` é o processo do container e confere a cada minuto se passou das 3h de Brasília sem o backup do dia ter dado certo (assim, roda também quando o servidor volta depois das 3h, e de novo a cada 30 minutos depois de uma falha); o `backup.sh` grava o `pg_dump` em formato custom, confere a cópia com o `pg_restore --list`, guarda 7 diárias e 4 semanais (a da semana é a mais recente dela, trocada a cada backup) e manda o que falta para o `BACKUP_DESTINO` com o `rclone copy`, com a mesma retenção lá (nunca o `sync`, que apagaria as cópias de fora se o volume local sumisse); o `restaurar.sh` restaura num banco vazio, numa transação só; o `saude.sh` acusa a última tentativa com falha ou o último backup bom com mais de 26 horas. O remoto do rclone fica no `infra/backup/rclone.conf` do servidor, fora do Git, montado só para leitura (o modelo é o `rclone.conf.example`).
+- **Scripts:** POSIX `sh`, para o busybox do Alpine (sem bash), com fim de linha LF, que o `.gitattributes` garante também no Windows.
+- **Logs:** `json-file` com rotação, 5 arquivos de 10 MB por container, na âncora `x-logs`; um serviço novo usa `logging: *logs`.
+- **Nome do projeto:** `fhdod-satisfacao-prod`, diferente do compose de desenvolvimento (`fhdod-satisfacao`), para os dois rodarem na mesma máquina sem dividir containers nem volumes. Para testar o compose de produção na máquina, use `DOMAIN=:80` e um `--env-file` fora do repositório, como no registro do ticket 19.
 
 ## Onde estão as coisas
 
@@ -378,6 +390,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | Tickets | [`docs/tickets/`](docs/tickets/) e as issues do GitHub |
 | Registros das entregas | [`docs/registros/`](docs/registros/) |
 | Contrato da API (OpenAPI) | [`openapi.json`](openapi.json), montado em [`src/config/openapi.ts`](src/config/openapi.ts); com a API rodando, o Swagger em `/api/docs` |
+| Imagem da API, compose de produção e backup | [`Dockerfile`](Dockerfile), [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml), [`infra/.env.example`](infra/.env.example) e [`infra/backup/`](infra/backup/) |
 | CI e modelo de pull request | [`.github/`](.github/) |
 | Configuração do Claude Code para o time | [`.claude/settings.json`](.claude/settings.json) |
 | Front-end | `../fhdod-satisfacao-web`, com o `docs/plano-frontend.md` e, depois do ticket 01 do front, o próprio `AGENTS.md` |

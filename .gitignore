@@ -70,6 +70,10 @@ web_modules/
 .env.*
 !.env.example
 
+# Destino do backup no servidor: a configuração do rclone e a chave do SFTP (infra/backup/rclone.conf.example)
+infra/backup/rclone.conf
+infra/backup/chave-sftp*
+
 # parcel-bundler cache (https://parceljs.org/)
 .cache
 .parcel-cache
