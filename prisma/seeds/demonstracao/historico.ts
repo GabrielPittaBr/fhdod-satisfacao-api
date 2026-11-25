@@ -3,10 +3,11 @@ import { horarioDeBrasilia, hojeEmBrasilia, somarDias } from '../../../src/share
 import { classificarNota, type LimitesDeNota } from '../../../src/shared/rules/classificar-nota'
 import { COMENTARIOS_DE_DEMONSTRACAO, ELOGIOS_A_PROFISSIONAIS, type NomeDaCategoria } from './dados'
 
-// O histórico de avaliações da demonstração: o mesmo gerador do mock do front (src/mocks/seed/historico.ts do
-// fhdod-satisfacao-web), com a semente fixa por dia. Rodado no mesmo dia, dá sempre as mesmas avaliações, as
-// mesmas que o mock mostra nesse dia. Num outro dia, o histórico anda junto: a tendência de cada setor vai do
-// começo ao fim do período, então os dias que já passaram também mudam um pouco.
+// O histórico de avaliações da demonstração: o mesmo gerador que o mock do front usava
+// (src/mocks/seed/historico.ts do fhdod-satisfacao-web, apagado no ticket 10 de lá), com a semente fixa por
+// dia. Rodado no mesmo dia, dá sempre as mesmas avaliações, as mesmas que o mock mostrava nesse dia. Num
+// outro dia, o histórico anda junto: a tendência de cada setor vai do começo ao fim do período, então os dias
+// que já passaram também mudam um pouco.
 
 /** Quantos dias antes de hoje o histórico começa: cerca de quatro meses. */
 export const DIAS_DO_HISTORICO = 120

@@ -1,9 +1,10 @@
 import type { Perfil, TipoComentario, TipoPergunta } from '../../../src/generated/prisma/enums'
 import type { CATEGORIAS_INICIAIS } from '../base'
 
-// Os dados de demonstração, os mesmos do mock do front (src/mocks/seed/dados.ts do fhdod-satisfacao-web, com os
-// usuários que saíram de lá no ticket 06 do front). Tudo é inventado: nenhum nome, e-mail, telefone ou comentário
-// é real, e os e-mails usam o domínio reservado `.example`, que não recebe mensagens.
+// Os dados de demonstração, os mesmos que o mock do front mostrava (src/mocks/seed/dados.ts do
+// fhdod-satisfacao-web, apagado no ticket 10 de lá, com os usuários que saíram dele no ticket 06). Tudo é
+// inventado: nenhum nome, e-mail, telefone ou comentário é real, e os e-mails usam o domínio reservado
+// `.example`, que não recebe mensagens.
 //
 // As senhas e o token da TV daqui estão no repositório, então são públicos: valem na máquina de quem desenvolve.
 // A homologação, que fica na internet, troca as senhas pelas variáveis DEMO_PASSWORD_* (ver o README).
