@@ -1,0 +1,41 @@
+# Modelo do rclone.conf do servidor: o remoto para onde o backup manda a cópia de fora. No servidor, copie para
+# infra/backup/rclone.conf (que nunca vai para o Git), preencha e deixe-o legível só pelo usuário do container
+# do backup (o postgres, uid 70):
+#   cp infra/backup/rclone.conf.example infra/backup/rclone.conf
+#   sudo chown 70 infra/backup/rclone.conf && sudo chmod 600 infra/backup/rclone.conf
+#
+# No infra/.env, o BACKUP_DESTINO diz o remoto e a pasta, como BACKUP_DESTINO=fora:fhdod-backups/producao.
+# Para conferir o acesso, na pasta da API:
+#   docker compose -f infra/docker-compose.prod.yml run --rm backup rclone lsf fora:fhdod-backups
+#
+# Qualquer destino do rclone serve (https://rclone.org/overview/). Abaixo, os mais comuns; deixe um só [fora].
+
+# Um armazenamento de objetos compatível com o S3: AWS S3, Backblaze B2, Cloudflare R2, Wasabi, MinIO... De
+# preferência no Brasil, como a região sa-east-1 (São Paulo) do AWS. A chave de acesso só precisa listar,
+# gravar e apagar no bucket do backup, e de nenhum outro.
+[fora]
+type = s3
+provider = AWS
+region = sa-east-1
+access_key_id = troque-pela-chave-de-acesso
+secret_access_key = troque-pelo-segredo-da-chave
+# Fora do AWS, o provider é Other (ou o nome do provedor, como Cloudflare ou Minio) e o endereço vai aqui:
+# endpoint = https://s3.exemplo.com.br
+
+# Ou outro servidor, por SFTP, com uma chave SSH só para o backup, nesta pasta (infra/backup/chave-sftp, que
+# também nunca vai para o Git e também precisa do chown 70):
+# [fora]
+# type = sftp
+# host = backup.exemplo.com.br
+# user = fhdod-backup
+# key_file = /etc/fhdod-backup/chave-sftp
+
+# As cópias levam as avaliações e os comentários dos pacientes, e os telefones cifrados (que só se leem com a
+# ENCRYPTION_KEY, que nunca vai junto). Para o destino guardar só arquivos cifrados, ponha um remoto crypt por
+# cima do anterior e use BACKUP_DESTINO=fora-cifrado:producao. A senha vai ofuscada, com a saída de:
+#   docker compose -f infra/docker-compose.prod.yml run --rm backup rclone obscure -
+# (digite a senha e aperte Ctrl+D). Guarde a senha fora do servidor: sem ela, as cópias de fora não se leem.
+# [fora-cifrado]
+# type = crypt
+# remote = fora:fhdod-backups
+# password = troque-pela-senha-ofuscada
