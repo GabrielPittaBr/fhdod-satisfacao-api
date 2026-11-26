@@ -2,7 +2,7 @@
 
 Oct 29, 2026 · @Gabriel Fernandes Pitta
 
-Revisado em Nov 20, 2026: o banco passou de MySQL para PostgreSQL (o motivo está em “Por que PostgreSQL”), e o “Fluxo Git” passou a usar a branch `develop`.
+Revisado em Nov 20, 2026: o banco passou de MySQL para PostgreSQL (o motivo está em “Por que PostgreSQL”), e o “Fluxo Git” passou a usar a branch `develop`. Revisado em Nov 26, 2026: a pesquisa geral (`/avaliar`), em que a pessoa escolhe os setores, substitui o link do Google Forms que o hospital divulgava, e o telefone para retorno passou a ser oferecido a todos no fim da pesquisa pela web.
 
 ## Resumo
 
@@ -19,7 +19,7 @@ O sistema será um monólito modular em TypeScript: uma API Node.js + Express 5 
 | Hospedagem | Ainda indefinida, por isso tudo em Docker | Roda igual em VPS, no servidor do hospital ou em plataforma gerenciada |
 | Time | 2 a 3 pessoas, todos em tudo | Cada pessoa entrega funcionalidades completas: rota, regra, tela e teste |
 
-**Entra no MVP:** pesquisa por setor no celular, no computador e no totem, com NPS obrigatório e telefone para retorno; cadastro de setores, categorias, turnos e perguntas; login com níveis de acesso por setor; dashboard básico; lista de pedidos de retorno; TV Wall; exportação em Excel e PDF.
+**Entra no MVP:** pesquisa por setor no celular, no computador e no totem, e a pesquisa geral, em que a pessoa escolhe os setores, com NPS obrigatório e telefone para retorno; cadastro de setores, categorias, turnos e perguntas; login com níveis de acesso por setor; dashboard básico; lista de pedidos de retorno; TV Wall; exportação em Excel e PDF.
 
 **Fica para depois:** gestão da ouvidoria e alertas por e-mail, importação de escalas e vínculo com equipes (fase 2); atualização em tempo real por SSE e integração com WhatsApp (fase 3).
 
@@ -35,8 +35,9 @@ As divergências do levantamento foram resolvidas assim. Cada regra já vem com 
 | Ordem | A pesquisa fecha com o NPS | A resposta é gravada ao confirmar o NPS; comentário e telefone chegam depois, como complemento |
 | Demais perguntas | Todas podem ser puladas | A validação exige só o NPS; perguntas puladas não geram registro |
 | Notas baixas | Escala 1 a 5: 3 ou menos é baixa, 1 é baixíssima. NPS: 0 a 6 é baixa, 0 a 2 é baixíssima | Uma única função de classificação, dentro da API; limites guardados no banco e ajustáveis |
-| Retorno ao paciente | Telefone opcional, oferecido só em avaliação negativa | Tela condicional; telefone cifrado no banco e visível só para quem tem permissão |
-| Setor | Definido pela URL; cada setor terá seu totem | Rotas `/s/:setor` e `/totem/:setor` com o identificador do setor na URL (slug) |
+| Retorno ao paciente | Telefone opcional, oferecido a todos no fim da pesquisa pela web; no totem, só em avaliação negativa | Tela no fim da pesquisa (no totem, condicional); telefone cifrado no banco e visível só para quem tem permissão |
+| Setor | Definido pela URL ou escolhido na pesquisa geral; cada setor terá seu totem | Rotas `/s/:setor` e `/totem/:setor` com o identificador do setor na URL (slug), e `/avaliar`, o link geral, em que a pessoa escolhe um ou mais setores e responde só as perguntas deles |
+| Vários setores | Na pesquisa geral, uma nota de 0 a 10 no fim, que vale para todos os setores escolhidos | Uma avaliação por setor, gravadas juntas, cada uma classificada pelas notas do próprio setor; o NPS geral conta cada setor avaliado, como quando a mesma pessoa lê dois QR Codes. Comentário e telefone vão para a avaliação do setor que a pessoa indicar |
 | Totem | Depois do envio, a pesquisa reinicia sozinha em 10 a 15 s | Modo totem com contagem regressiva configurável e limpeza total do estado |
 | Dispositivos | Celular, computador, tablet e totens | Layout mobile-first e responsivo; a mesma tela atende todos |
 | Cadastros | Super Admin cria setores; gestores de setor criam e editam perguntas | Permissões `setores:gerenciar` e `perguntas:gerenciar`, esta limitada aos setores de cada gestor |
@@ -685,6 +686,8 @@ Todas as rotas ficam sob `/api/v1`, com os recursos em português e no plural. A
 | PATCH | `/auth/senha` | Logado | Troca a própria senha | MVP |
 | GET | `/publico/setores/:slug/pesquisa` | Público | Setor, perguntas ativas em ordem, turnos, texto do NPS, limites e tempos do totem | MVP |
 | POST | `/publico/setores/:slug/respostas` | Público, com limite | Grava as respostas e o NPS; devolve a classificação e o token de complemento | MVP |
+| GET | `/publico/pesquisa` | Público | Pesquisa geral: setores ativos com as perguntas, turnos e texto do NPS | MVP |
+| POST | `/publico/respostas` | Público, com limite | Grava a avaliação de um ou mais setores, com uma nota para todos; devolve a classificação e o token de complemento de cada um | MVP |
 | POST | `/publico/respostas/:id/complemento` | Token de complemento | Anexa comentário e/ou telefone para retorno | MVP |
 | GET | `/tv/indicadores` | Token da TV | Indicadores gerais agregados, sem comentários | MVP |
 | GET | `/setores` | Logado, com escopo | Setores visíveis ao usuário | MVP |
@@ -782,6 +785,7 @@ Um único app React atende quatro áreas: pesquisa, totem, painel e TV Wall. Cad
 | Rota | Área | Quem acessa | Fase |
 | --- | --- | --- | --- |
 | `/s/:setor` | Pesquisa no celular ou computador | Público | MVP |
+| `/avaliar` | Pesquisa geral: a pessoa escolhe os setores que quer avaliar | Público | MVP |
 | `/totem/:setor` | Pesquisa em modo totem | Público, no aparelho fixo do setor | MVP |
 | `/tv#<token>` | TV Wall | Quem tem o link da tela | MVP |
 | `/login` | Entrada do painel | Público | MVP |
@@ -806,11 +810,11 @@ O token da TV vai depois do `#` porque essa parte da URL nunca é enviada ao ser
 
 No celular, a pesquisa termina no agradecimento; no totem, ela volta sozinha ao início para o próximo paciente.
 
-1. **Abertura:** o front busca `GET /publico/setores/:slug/pesquisa`, com perguntas, turnos, limites e tempos.
+1. **Abertura:** o front busca `GET /publico/setores/:slug/pesquisa`, com perguntas, turnos, limites e tempos. Na pesquisa geral (`/avaliar`), busca `GET /publico/pesquisa`, e a abertura é a escolha dos setores, um ou mais.
 2. **Data e turno:** no celular, botões “Hoje”, “Ontem” e “Outra data” e os turnos em botões. No totem não há essa tela: vale a data de hoje e o turno do horário atual.
-3. **Perguntas do setor:** uma por tela, na ordem da jornada. Um toque responde e avança, e o botão “Pular” fica sempre visível.
-4. **NPS de 0 a 10:** obrigatório, em botões grandes (duas linhas no celular). Ao tocar, a resposta é enviada.
-5. **Se a avaliação for baixa:** “Quer contar o que aconteceu?” e “Quer que o hospital entre em contato?”, com telefone e consentimento. Se não for, “Quer deixar um elogio ou uma sugestão?”.
+3. **Perguntas do setor:** uma por tela, na ordem da jornada. Um toque responde e avança, e o botão “Pular” fica sempre visível. Na pesquisa geral, vêm as perguntas de cada setor escolhido, um setor depois do outro, na ordem em que a pessoa os escolheu, com o nome do setor acima de cada pergunta.
+4. **NPS de 0 a 10:** obrigatório, em botões grandes (duas linhas no celular). Ao tocar, a resposta é enviada. Na pesquisa geral, a nota é dada uma vez e o `POST /publico/respostas` grava uma avaliação por setor escolhido.
+5. **Comentário e telefone:** se a avaliação for baixa, “Quer contar o que aconteceu?”; se não for, “Quer deixar um elogio ou uma sugestão?”. Depois, “Quer que o hospital entre em contato?”, com telefone e consentimento: na web, para todos; no totem, só na avaliação baixa. Na pesquisa geral com mais de um setor, o comentário pergunta “Sobre qual setor?”, e o comentário e o telefone vão para a avaliação desse setor.
 6. **Agradecimento:** mensagem curta; no totem, contagem regressiva e reinício.
 
 Gravar no NPS garante o dado principal mesmo se a pessoa desistir no comentário. O complemento usa um token de uso único que expira em 30 minutos.
@@ -829,7 +833,7 @@ Gravar no NPS garante o dado principal mesmo se a pessoa desistir no comentário
 - Dashboard: cartões de NPS, total de respostas, promotores, neutros, detratores e notas baixas; NPS por setor; evolução mensal; médias por categoria; ranking de melhores e piores pontos; comentários recentes.
 - Filtros no topo (período, base da data, setor, turno, canal) ficam na URL. Assim a mesma visão pode ser compartilhada, e a exportação sai exatamente com o que está na tela.
 - Perguntas: lista arrastável para ordenar, prévia no formato do celular e aviso quando passar de 8 perguntas ativas, sem bloquear.
-- Setores: links da pesquisa e do totem e QR Code prontos para imprimir.
+- Setores: links da pesquisa e do totem e QR Code prontos para imprimir; e, para o Super Admin, o link geral (`/avaliar`), também com QR Code.
 
 ### TV Wall
 
