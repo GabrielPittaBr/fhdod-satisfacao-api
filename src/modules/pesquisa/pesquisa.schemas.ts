@@ -61,28 +61,33 @@ export const perguntaPublicaSchema = z
 
 export type PerguntaPublica = z.output<typeof perguntaPublicaSchema>
 
+/** Um turno, como a pesquisa o mostra: o mesmo na pesquisa do setor e na geral. */
+const turnoDaPesquisaSchema = z.object({
+  id: z.number().int(),
+  nome: z.string(),
+  horaInicio: z.string().meta({ description: 'Início, em HH:mm.', example: '07:00' }),
+  horaFim: z.string().meta({
+    description: 'Fim, em HH:mm. Menor que o início quando o turno passa da meia-noite.',
+    example: '13:00',
+  }),
+})
+
+const npsTextoSchema = z.string().meta({ description: 'O texto da pergunta de 0 a 10.' })
+
+const textoLimiteCaracteresSchema = z
+  .number()
+  .int()
+  .meta({ description: 'Tamanho máximo das respostas em texto e dos comentários.' })
+
 export const pesquisaPublicaSchema = z
   .object({
     setor: z.object({ nome: z.string(), slug: z.string() }),
     perguntas: z.array(perguntaPublicaSchema).meta({ description: 'Só as ativas, na ordem da pesquisa.' }),
     turnos: z
-      .array(
-        z.object({
-          id: z.number().int(),
-          nome: z.string(),
-          horaInicio: z.string().meta({ description: 'Início, em HH:mm.', example: '07:00' }),
-          horaFim: z.string().meta({
-            description: 'Fim, em HH:mm. Menor que o início quando o turno passa da meia-noite.',
-            example: '13:00',
-          }),
-        }),
-      )
+      .array(turnoDaPesquisaSchema)
       .meta({ description: 'Todos os turnos, na ordem definida. O totem usa o do horário atual.' }),
-    npsTexto: z.string().meta({ description: 'O texto da pergunta de 0 a 10.' }),
-    textoLimiteCaracteres: z
-      .number()
-      .int()
-      .meta({ description: 'Tamanho máximo das respostas em texto e dos comentários.' }),
+    npsTexto: npsTextoSchema,
+    textoLimiteCaracteres: textoLimiteCaracteresSchema,
     totem: z.object({
       reinicioSegundos: z
         .number()
@@ -102,6 +107,42 @@ export const pesquisaPublicaSchema = z
   })
 
 export type PesquisaPublica = z.output<typeof pesquisaPublicaSchema>
+
+// ---------- GET /publico/pesquisa ----------
+
+export const setorDaPesquisaSchema = z
+  .object({
+    nome: z.string(),
+    slug: z.string().meta({ description: 'O endereço do setor, que identifica o setor no envio.' }),
+    descricao: z.string().nullable().meta({
+      description: 'O que o setor atende, para a pessoa reconhecer por onde passou; `null` quando não há.',
+    }),
+    perguntas: z
+      .array(perguntaPublicaSchema)
+      .meta({ description: 'Só as ativas, na ordem da pesquisa do setor. Pode ser vazia.' }),
+  })
+  .meta({
+    id: 'SetorDaPesquisa',
+    description: 'Um setor que a pessoa pode escolher na pesquisa geral, com as perguntas dele.',
+  })
+
+export const pesquisaGeralSchema = z
+  .object({
+    setores: z
+      .array(setorDaPesquisaSchema)
+      .meta({ description: 'Os setores ativos, em ordem alfabética. Vazia quando nenhum está ativo.' }),
+    turnos: z.array(turnoDaPesquisaSchema).meta({ description: 'Todos os turnos, na ordem definida.' }),
+    npsTexto: npsTextoSchema,
+    textoLimiteCaracteres: textoLimiteCaracteresSchema,
+  })
+  .meta({
+    id: 'PesquisaGeral',
+    description:
+      'A pesquisa do link geral (`/avaliar`): a pessoa escolhe um ou mais setores e responde só as perguntas ' +
+      'deles. Os limites de nota baixa não vêm: a classificação é da API.',
+  })
+
+export type PesquisaGeral = z.output<typeof pesquisaGeralSchema>
 
 // ---------- POST /publico/setores/:slug/respostas ----------
 
@@ -123,43 +164,56 @@ const itemEnvioSchema = z
   })
   .meta({ id: 'ItemEnvio', description: 'A resposta de uma pergunta. A pergunta pulada não vem.' })
 
+// Os campos do envio, iguais no envio de um setor e no da pesquisa geral.
+
+const chaveIdempotenciaSchema = z.uuid('Chave de envio inválida').meta({
+  description:
+    'UUID criado pelo front a cada avaliação e repetido em cada nova tentativa do mesmo envio. A mesma ' +
+    'chave devolve a avaliação já gravada, sem criar outra.',
+  example: '4b7e0c1a-9d2f-4c11-8a35-1f0e6b2d7c90',
+})
+
+const dataAtendimentoSchema = z.iso
+  .date({ error: 'Informe a data do atendimento' })
+  .refine((data) => data <= hojeEmBrasilia(), MENSAGEM_DATA_FUTURA)
+  .meta({
+    description: 'O dia do atendimento, em AAAA-MM-DD; não pode ser depois de hoje no horário de Brasília.',
+    example: '2026-11-10',
+  })
+
+const turnoIdSchema = idNoCorpo(MENSAGEM_TURNO).meta({ example: 1 })
+
+const itensSchema = z.array(itemEnvioSchema).default([]).meta({
+  description:
+    'Uma resposta por pergunta ativa do setor, no máximo; as puladas não vêm, e a lista pode ser vazia.',
+})
+
+const npsSchema = z
+  .number({ error: MENSAGEM_NPS })
+  .int(MENSAGEM_NPS)
+  .min(0, MENSAGEM_NPS)
+  .max(10, MENSAGEM_NPS)
+  .meta({ description: 'A nota de 0 a 10, obrigatória.', example: 6 })
+
+const iscaSchema = z
+  .string()
+  .max(0, MENSAGEM_ISCA)
+  .optional()
+  .meta({
+    description:
+      'Campo isca: o formulário o mantém invisível para pessoas (fora da tela, com `tabindex="-1"` e ' +
+      '`autocomplete="off"`) e o envia vazio, ou não o envia. Preenchido, o envio é recusado e nada é gravado.',
+  })
+
 const envioRespostaBody = z
   .object({
-    chaveIdempotencia: z.uuid('Chave de envio inválida').meta({
-      description:
-        'UUID criado pelo front a cada avaliação e repetido em cada nova tentativa do mesmo envio. A mesma ' +
-        'chave devolve a avaliação já gravada, sem criar outra.',
-      example: '4b7e0c1a-9d2f-4c11-8a35-1f0e6b2d7c90',
-    }),
+    chaveIdempotencia: chaveIdempotenciaSchema,
     canal: canalSchema,
-    dataAtendimento: z.iso
-      .date({ error: 'Informe a data do atendimento' })
-      .refine((data) => data <= hojeEmBrasilia(), MENSAGEM_DATA_FUTURA)
-      .meta({
-        description:
-          'O dia do atendimento, em AAAA-MM-DD; não pode ser depois de hoje no horário de Brasília.',
-        example: '2026-11-10',
-      }),
-    turnoId: idNoCorpo(MENSAGEM_TURNO).meta({ example: 1 }),
-    itens: z.array(itemEnvioSchema).default([]).meta({
-      description:
-        'Uma resposta por pergunta ativa do setor, no máximo; as puladas não vêm, e a lista pode ser vazia.',
-    }),
-    nps: z
-      .number({ error: MENSAGEM_NPS })
-      .int(MENSAGEM_NPS)
-      .min(0, MENSAGEM_NPS)
-      .max(10, MENSAGEM_NPS)
-      .meta({ description: 'A nota de 0 a 10, obrigatória.', example: 6 }),
-    site: z
-      .string()
-      .max(0, MENSAGEM_ISCA)
-      .optional()
-      .meta({
-        description:
-          'Campo isca: o formulário o mantém invisível para pessoas (fora da tela, com `tabindex="-1"` e ' +
-          '`autocomplete="off"`) e o envia vazio, ou não o envia. Preenchido, o envio é recusado e nada é gravado.',
-      }),
+    dataAtendimento: dataAtendimentoSchema,
+    turnoId: turnoIdSchema,
+    itens: itensSchema,
+    nps: npsSchema,
+    site: iscaSchema,
   })
   .meta({ id: 'EnvioResposta', description: 'Uma avaliação, gravada ao confirmar a nota de 0 a 10.' })
 
@@ -167,20 +221,119 @@ export const enviarResposta = { params: slugParams, body: envioRespostaBody }
 
 export type EnvioResposta = z.output<typeof envioRespostaBody>
 
+const tokenComplementoSchema = z.string().meta({
+  description:
+    'Para anexar o comentário e o telefone, no cabeçalho `X-Complemento-Token`, uma vez só. Um reenvio com a ' +
+    'mesma chave recebe outro, que substitui este.',
+})
+
+const expiraEmSchema = z.iso
+  .datetime()
+  .meta({ description: 'Até quando o token vale: 30 minutos depois do envio.' })
+
 export const respostaCriadaSchema = z
   .object({
     id: z.number().int(),
     classificacao: classificacaoSchema,
-    tokenComplemento: z.string().meta({
-      description:
-        'Para anexar o comentário e o telefone, no cabeçalho `X-Complemento-Token`, uma vez só. Um reenvio com a ' +
-        'mesma chave recebe outro, que substitui este.',
-    }),
-    expiraEm: z.iso.datetime().meta({ description: 'Até quando o token vale: 30 minutos depois do envio.' }),
+    tokenComplemento: tokenComplementoSchema,
+    expiraEm: expiraEmSchema,
   })
   .meta({ id: 'RespostaCriada', description: 'A avaliação gravada.' })
 
 export type RespostaCriada = z.output<typeof respostaCriadaSchema>
+
+// ---------- POST /publico/respostas ----------
+
+/** Setores num envio da pesquisa geral: folga para o hospital inteiro e um teto para o trabalho de um pedido. */
+export const MAXIMO_DE_SETORES_NO_ENVIO = 20
+
+/** Os problemas dos setores do envio geral, no campo `setores` ou no do setor (`setores.1.slug`). */
+export const MENSAGENS_DO_ENVIO_GERAL = {
+  setores: 'Escolha pelo menos um setor',
+  muitosSetores: `Escolha no máximo ${MAXIMO_DE_SETORES_NO_ENVIO} setores`,
+  setor: 'Escolha um setor da pesquisa',
+  setorRepetido: 'Este setor foi escolhido mais de uma vez',
+  chaveRepetida: 'Use uma chave de envio diferente em cada setor',
+  setorIndisponivel: 'Este setor não está recebendo avaliações agora',
+} as const
+
+const envioDoSetorSchema = z
+  .object({
+    slug: z
+      .string({ error: MENSAGENS_DO_ENVIO_GERAL.setor })
+      .min(1, MENSAGENS_DO_ENVIO_GERAL.setor)
+      .meta({ description: 'O `slug` de um setor ativo, como veio na pesquisa geral.', example: 'raio-x' }),
+    chaveIdempotencia: chaveIdempotenciaSchema,
+    itens: itensSchema,
+  })
+  .meta({ id: 'EnvioDoSetor', description: 'As respostas de um setor escolhido, com a chave de envio dele.' })
+
+const envioGeralBody = z
+  .object({
+    canal: canalSchema,
+    dataAtendimento: dataAtendimentoSchema,
+    turnoId: turnoIdSchema,
+    nps: npsSchema,
+    site: iscaSchema,
+    setores: z
+      .array(envioDoSetorSchema, { error: MENSAGENS_DO_ENVIO_GERAL.setores })
+      .min(1, MENSAGENS_DO_ENVIO_GERAL.setores)
+      .max(MAXIMO_DE_SETORES_NO_ENVIO, MENSAGENS_DO_ENVIO_GERAL.muitosSetores)
+      .superRefine((setores, ctx) => {
+        // No Zod 4, a regra roda mesmo com um setor mal formado: só compara o que veio como texto.
+        const slugs = new Set<string>()
+        const chaves = new Set<string>()
+        for (const [indice, { slug, chaveIdempotencia }] of setores.entries()) {
+          if (typeof slug === 'string' && slugs.has(slug)) {
+            ctx.addIssue({
+              code: 'custom',
+              path: [indice, 'slug'],
+              message: MENSAGENS_DO_ENVIO_GERAL.setorRepetido,
+            })
+          }
+          if (typeof chaveIdempotencia === 'string' && chaves.has(chaveIdempotencia)) {
+            ctx.addIssue({
+              code: 'custom',
+              path: [indice, 'chaveIdempotencia'],
+              message: MENSAGENS_DO_ENVIO_GERAL.chaveRepetida,
+            })
+          }
+          slugs.add(slug)
+          chaves.add(chaveIdempotencia)
+        }
+      })
+      .meta({
+        description:
+          `De 1 a ${MAXIMO_DE_SETORES_NO_ENVIO} setores, sem repetir o setor nem a chave, na ordem em que a ` +
+          'pessoa os escolheu. Cada um vira uma avaliação, com a nota, a data e o turno do envio.',
+      }),
+  })
+  .meta({
+    id: 'EnvioGeral',
+    description:
+      'A avaliação de um ou mais setores, da pesquisa geral, gravada ao confirmar a nota de 0 a 10. A nota vale ' +
+      'para todos os setores escolhidos.',
+  })
+
+export const enviarRespostasGerais = { body: envioGeralBody }
+
+export type EnvioGeral = z.output<typeof envioGeralBody>
+
+export const respostaCriadaDoSetorSchema = z
+  .object({
+    slug: z.string().meta({ description: 'O setor desta avaliação, como veio no envio.' }),
+    id: z.number().int(),
+    classificacao: classificacaoSchema,
+    tokenComplemento: tokenComplementoSchema,
+    expiraEm: expiraEmSchema,
+  })
+  .meta({
+    id: 'RespostaCriadaDoSetor',
+    description:
+      'A avaliação gravada num dos setores do envio geral, com a classificação pelas notas daquele setor.',
+  })
+
+export type RespostaCriadaDoSetor = z.output<typeof respostaCriadaDoSetorSchema>
 
 // ---------- POST /publico/respostas/:id/complemento ----------
 
@@ -238,7 +391,9 @@ const complementoBody = z
   .object({
     comentario: comentarioSchema.optional().meta({ description: 'O comentário, se a pessoa escreveu.' }),
     contato: contatoSchema.optional().meta({
-      description: 'O pedido de retorno, se a pessoa deixou o telefone. A tela o oferece na avaliação baixa.',
+      description:
+        'O pedido de retorno, se a pessoa deixou o telefone. A pesquisa pela web o oferece a todos, no fim; o ' +
+        'totem, só na avaliação baixa.',
     }),
   })
   .refine(

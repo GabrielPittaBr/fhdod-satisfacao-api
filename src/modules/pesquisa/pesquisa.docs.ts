@@ -2,20 +2,28 @@ import type { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi'
 import { CONFIGURACOES_PADRAO } from '../../shared/constants/configuracoes'
 import { documentarRota, respostaJson, type ErroDaRota } from '../../shared/http/documentacao'
 import { envelope } from '../../shared/http/respond'
+import { z } from 'zod'
 import {
   abrirPesquisa,
   CABECALHO_DO_COMPLEMENTO,
   complementarResposta,
   enviarResposta,
+  enviarRespostasGerais,
+  MAXIMO_DE_SETORES_NO_ENVIO,
   MENSAGEM_JA_ENVIADA,
   MENSAGEM_NPS,
   MENSAGEM_PESQUISA_INDISPONIVEL,
   MENSAGEM_PRAZO_DO_COMPLEMENTO,
   MENSAGENS_DO_COMPLEMENTO,
+  MENSAGENS_DO_ENVIO_GERAL,
+  pesquisaGeralSchema,
   pesquisaPublicaSchema,
+  respostaCriadaDoSetorSchema,
   respostaCriadaSchema,
+  type PesquisaGeral,
   type PesquisaPublica,
   type RespostaCriada,
+  type RespostaCriadaDoSetor,
 } from './pesquisa.schemas'
 
 const TAGS = ['Pesquisa pública']
@@ -55,10 +63,55 @@ const RESPOSTA_CRIADA: RespostaCriada = {
   expiraEm: '2026-11-10T14:52:00.000Z',
 }
 
+const PESQUISA_GERAL_DE_EXEMPLO: PesquisaGeral = {
+  setores: [
+    {
+      nome: 'Laboratório',
+      slug: 'laboratorio',
+      descricao: 'Coleta e exames',
+      perguntas: [{ id: 21, texto: 'Como foi a coleta do exame?', tipo: 'ESCALA_1_5', opcoes: null }],
+    },
+    {
+      nome: 'Pronto Atendimento',
+      slug: 'pronto-atendimento',
+      descricao: 'Urgência e emergência, 24 horas',
+      perguntas: PESQUISA_DE_EXEMPLO.perguntas,
+    },
+  ],
+  turnos: PESQUISA_DE_EXEMPLO.turnos,
+  npsTexto: PESQUISA_DE_EXEMPLO.npsTexto,
+  textoLimiteCaracteres: PESQUISA_DE_EXEMPLO.textoLimiteCaracteres,
+}
+
+const RESPOSTAS_CRIADAS_DOS_SETORES: RespostaCriadaDoSetor[] = [
+  {
+    slug: 'laboratorio',
+    id: 846,
+    classificacao: 'NORMAL',
+    tokenComplemento: 'Qm7vT1xZ8cLp3RwYk5Nd2Hf9Jb6Ks4Ga0Ue1Oi7Py3',
+    expiraEm: '2026-11-10T14:52:00.000Z',
+  },
+  {
+    slug: 'pronto-atendimento',
+    id: 847,
+    classificacao: 'BAIXA',
+    tokenComplemento: 'Vn2pR8yW5qMx1LsTc7Kd4Gh0Jf3Bz9Ea6Ui2Oo8Py5',
+    expiraEm: '2026-11-10T14:52:00.000Z',
+  },
+]
+
 const PESQUISA_INDISPONIVEL: ErroDaRota = {
   codigo: 'NAO_ENCONTRADO',
   quando: 'não existe setor com este endereço, ou ele está desativado.',
   mensagem: MENSAGEM_PESQUISA_INDISPONIVEL,
+}
+
+const LIMITE_DE_ENVIOS: ErroDaRota = {
+  codigo: 'LIMITE_ATINGIDO',
+  quando:
+    'mais de 30 envios do mesmo IP em 15 minutos, somando os do envio de um setor e os da pesquisa geral ' +
+    '(um envio geral conta uma vez, com qualquer número de setores).',
+  mensagem: 'Muitas avaliações enviadas desta rede. Espere alguns minutos e tente de novo.',
 }
 
 export function documentarPesquisa(registry: OpenAPIRegistry) {
@@ -86,6 +139,22 @@ export function documentarPesquisa(registry: OpenAPIRegistry) {
       }),
     },
     erros: [PESQUISA_INDISPONIVEL],
+  })
+
+  documentarRota(registry, {
+    method: 'get',
+    path: '/api/v1/publico/pesquisa',
+    tags: TAGS,
+    summary: 'Abre a pesquisa geral',
+    description:
+      'Sem login. A pesquisa do link geral (`/avaliar`), em que a pessoa escolhe um ou mais setores e responde ' +
+      'só as perguntas deles: os setores ativos em ordem alfabética, cada um com a descrição e as perguntas ' +
+      'ativas na ordem, os turnos e os textos que a tela usa. Sem setores ativos, a lista vem vazia.',
+    respostas: {
+      200: respostaJson('A pesquisa geral.', envelope(pesquisaGeralSchema), {
+        data: PESQUISA_GERAL_DE_EXEMPLO,
+      }),
+    },
   })
 
   documentarRota(registry, {
@@ -121,11 +190,50 @@ export function documentarPesquisa(registry: OpenAPIRegistry) {
         quando: 'a chave já foi usada num envio de outro setor, ou no de uma avaliação já complementada.',
         mensagem: MENSAGEM_JA_ENVIADA,
       },
+      LIMITE_DE_ENVIOS,
+    ],
+  })
+
+  documentarRota(registry, {
+    method: 'post',
+    path: '/api/v1/publico/respostas',
+    tags: TAGS,
+    summary: 'Envia a avaliação de um ou mais setores',
+    description:
+      'Sem login, com o mesmo limite de envios do envio de um setor. A pesquisa geral grava, ao confirmar a ' +
+      'nota de 0 a 10, uma avaliação por setor escolhido, todas com a mesma nota, data, turno e canal; cada uma ' +
+      'com os itens do próprio setor, a classificação pelas notas dele e um token de complemento. As avaliações ' +
+      'entram numa transação só: com um problema em qualquer setor, nada é gravado. A resposta vem na ordem do ' +
+      'pedido, sem cache. O comentário e o telefone vão depois, pelo complemento de uma delas. Reenviar as ' +
+      'mesmas chaves devolve as avaliações já gravadas, com tokens novos. O IP de quem envia não é gravado.',
+    requisicao: enviarRespostasGerais,
+    respostas: {
+      201: respostaJson(
+        'Avaliações gravadas (ou já gravadas, num reenvio), uma por setor, na ordem do pedido.',
+        envelope(z.array(respostaCriadaDoSetorSchema)),
+        { data: RESPOSTAS_CRIADAS_DOS_SETORES },
+      ),
+    },
+    erros: [
       {
-        codigo: 'LIMITE_ATINGIDO',
-        quando: 'mais de 30 envios do mesmo IP em 15 minutos.',
-        mensagem: 'Muitas avaliações enviadas desta rede. Espere alguns minutos e tente de novo.',
+        codigo: 'VALIDACAO',
+        quando:
+          'um item em `detalhes` por problema: nenhum setor ou mais de ' +
+          `${MAXIMO_DE_SETORES_NO_ENVIO} (em \`setores\`), setor repetido, inexistente ou desativado (em ` +
+          '`setores.N.slug`), chave repetida ou que não é UUID (em `setores.N.chaveIdempotencia`), pergunta que ' +
+          'não é uma ativa daquele setor ou repetida (em `setores.N.itens.M`), valor errado para o tipo da ' +
+          'pergunta (em `setores.N.itens.M.valorNumero` ou `setores.N.itens.M.valorTexto`), e o NPS, a data, o ' +
+          'turno e o campo isca como no envio de um setor.',
+        detalhes: [{ campo: 'setores.1.slug', mensagem: MENSAGENS_DO_ENVIO_GERAL.setorIndisponivel }],
       },
+      {
+        codigo: 'CONFLITO',
+        quando:
+          'só parte das chaves já foi gravada, uma chave foi usada noutro setor ou uma das avaliações já foi ' +
+          'complementada.',
+        mensagem: MENSAGEM_JA_ENVIADA,
+      },
+      LIMITE_DE_ENVIOS,
     ],
   })
 

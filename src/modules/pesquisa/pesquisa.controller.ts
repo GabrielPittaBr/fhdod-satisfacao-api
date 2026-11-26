@@ -6,6 +6,7 @@ import {
   CABECALHO_DO_COMPLEMENTO,
   complementarResposta,
   enviarResposta,
+  enviarRespostasGerais,
 } from './pesquisa.schemas'
 import { pesquisaService } from './pesquisa.service'
 
@@ -15,12 +16,24 @@ export const pesquisaController = {
     responder(res, await pesquisaService.abrir(params.slug))
   },
 
+  async abrirGeral(_req: Request, res: Response) {
+    responder(res, await pesquisaService.abrirGeral())
+  },
+
   async enviar(req: Request, res: Response) {
     const { params, body } = validados(req, enviarResposta)
     const criada = await pesquisaService.enviar(params.slug, body)
     // O token de complemento só aparece nesta resposta, que não fica em cache.
     res.set('Cache-Control', 'no-store')
     responder(res, criada, 201)
+  },
+
+  async enviarGeral(req: Request, res: Response) {
+    const { body } = validados(req, enviarRespostasGerais)
+    const criadas = await pesquisaService.enviarGeral(body)
+    // Os tokens de complemento só aparecem nesta resposta, que não fica em cache.
+    res.set('Cache-Control', 'no-store')
+    responder(res, criadas, 201)
   },
 
   async complementar(req: Request, res: Response) {

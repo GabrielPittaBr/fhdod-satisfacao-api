@@ -63,7 +63,7 @@ O paciente avalia o atendimento pelo celular (o QR Code do setor) ou pelo totem,
 
 <table>
   <tr>
-    <td width="33%"><b>📱 Pesquisa sem login</b><br><sub>NPS de 0 a 10 e as perguntas do setor, com comentário e pedido de retorno. O IP do paciente não é gravado.</sub></td>
+    <td width="33%"><b>📱 Pesquisa sem login</b><br><sub>Pelo QR Code do setor ou pelo link geral, em que a pessoa escolhe os setores. NPS de 0 a 10 e as perguntas de cada setor, com comentário e pedido de retorno. O IP do paciente não é gravado.</sub></td>
     <td width="33%"><b>📊 Indicadores</b><br><sub>NPS, médias de 1 a 5, evolução, categorias, ranking e comentários, com filtros de período, setor, turno e canal.</sub></td>
     <td width="33%"><b>🔐 Perfis e setores</b><br><sub>Super Admin, Gestor, Ouvidoria e Visualizador, com a permissão e o setor conferidos em cada rota.</sub></td>
   </tr>
@@ -350,6 +350,7 @@ Ele mostra as contas e o link da TV; as senhas são as das `DEMO_PASSWORD_*` (`g
 **10. Teste com o hospital**, em aparelhos de verdade. Cada problema encontrado vira uma issue; a versão aprovada vai para a `main`, com tag de versão.
 
 - [ ] Pesquisa no celular, pelo QR Code: uma nota baixa com telefone e uma nota normal com elogio
+- [ ] Pesquisa geral, em `/avaliar` (o link que substitui o Google Forms): dois setores, com o comentário e o telefone no setor escolhido
 - [ ] Totem reiniciando sozinho, em `/totem/<setor>`
 - [ ] Painel com cada perfil: Super Admin, Gestor, Ouvidoria e Visualizador
 - [ ] TV em tela cheia, com o link criado em "Telas de TV"
