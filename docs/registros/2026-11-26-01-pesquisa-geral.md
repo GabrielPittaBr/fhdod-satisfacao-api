@@ -2,7 +2,7 @@
 
 26/11/2026 · Agente (Claude Code)
 
-> Ticket [21](../tickets/21-pesquisa-geral.md). A issue ainda não existe no GitHub: o `gh` da máquina não estava logado.
+> Ticket [21](../tickets/21-pesquisa-geral.md), issue [#44](https://github.com/GabrielPittaBr/fhdod-satisfacao-api/issues/44).
 >
 > O hospital divulga hoje um link do Google Forms. Nele a pessoa escolhe o setor e, no fim, deixa um telefone para retorno. A pesquisa geral (`/avaliar`, no front) substitui esse link: a pessoa escolhe um ou mais setores, responde só as perguntas deles e dá uma nota de 0 a 10 no fim, que vale para todos. A API abre essa pesquisa com os setores ativos e as perguntas de cada um, e grava num envio só uma avaliação por setor. Na mesma entrega, o telefone para retorno passou a ser oferecido a todos no fim da pesquisa pela web, e não só na avaliação baixa.
 
@@ -94,11 +94,11 @@
 
 O motivo das três é o mesmo: substituir o link do Google Forms que o hospital usa, com o que ele já pedia (a escolha do setor e o telefone no fim).
 
-- **Ticket sem issue com o mesmo número:** os números de 21 a 43 já são pull requests, então o ticket 21 não pode ser a issue #21, como pede o `AGENTS.md`. O número da issue entra no ticket quando ela for criada.
+- **Ticket sem issue com o mesmo número:** os números de 21 a 43 já eram pull requests, então o ticket 21 não pôde ser a issue #21, como pede o `AGENTS.md`. A issue dele é a #44.
 
 ## Pendências e dúvidas
 
-- **Issue e PR:** criar a issue do ticket 21 e abrir o PR para a `develop`, antes do PR do front. Precisa do `gh auth login` na máquina.
+- **Revisão:** o PR entra na `develop` depois da aprovação de outra pessoa do time, e antes do PR do front. Depois do merge, a issue #44 é fechada à mão.
 - **Confirmar com o hospital** o telefone oferecido a todos. Com a mudança, entram mais telefones, de pacientes satisfeitos também. Isso pesa no prazo de retenção, que ainda está em aberto no plano, e na fila da Ouvidoria. A lista já mostra a classificação de cada pedido.
 - **NPS por pessoa:** se o hospital quiser que o NPS geral conte cada pessoa uma vez, a solução é guardar um identificador do envio nas respostas e usá-lo nas contas. Isso é uma mudança de modelo e de relatórios.
 - **Pesquisa geral no totem** (`/totem` sem setor), para um aparelho na entrada do hospital: a rota já aceita `TOTEM` no `canal`.

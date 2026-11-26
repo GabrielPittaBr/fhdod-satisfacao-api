@@ -1,6 +1,6 @@
 # 21 — Pesquisa geral: escolha dos setores e envio de vários setores
 
-**Issue:** ainda não criada no GitHub. O `gh` da máquina em que o ticket foi escrito não estava logado. Os números de 21 a 43 já são pull requests, então a issue terá outro número, que entra aqui quando ela for criada.
+**Issue:** [#44](https://github.com/GabrielPittaBr/fhdod-satisfacao-api/issues/44). O número não é o do ticket porque os números de 21 a 43 já eram pull requests.
 
 **O que construir:** Hoje o hospital divulga um link do Google Forms. Nele a pessoa escolhe o setor que quer avaliar e, no fim, pode deixar um telefone para retorno. A pesquisa geral substitui esse link: é o `/avaliar`, no front. A pessoa escolhe um ou mais setores, responde só as perguntas deles e, no fim, dá uma nota de 0 a 10, que vale para todos os setores escolhidos. A API abre a pesquisa com os setores ativos e as perguntas de cada um e grava, num envio só, uma avaliação por setor. Cada avaliação é como a de quem lê o QR Code daquele setor.
 
