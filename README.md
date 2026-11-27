@@ -167,6 +167,7 @@ A TV abre em <http://localhost:5173/tv#demo-recepcao-fhdod> (o endereço do fron
 | --- | --- |
 | `pnpm dev` | A API com recarga automática |
 | `pnpm test` | Testes unitários e de integração, no banco de teste do compose (`--project unit` roda só os que não precisam de banco) |
+| `pnpm test:cobertura` | Os mesmos testes, com a cobertura do código; o relatório em HTML fica em `coverage/index.html` |
 | `pnpm lint` | ESLint |
 | `pnpm typecheck` | Checagem de tipos do TypeScript |
 | `pnpm build` | Gera o build em `dist/`, que o `pnpm start` roda |
@@ -468,8 +469,8 @@ fhdod-satisfacao-api/
 │   └── config/        # variáveis de ambiente, logger e o documento OpenAPI
 ├── prisma/            # schema, migrations, seed base e dados de demonstração
 ├── tests/             # testes de integração, factories e helpers
-├── infra/             # compose de produção, banco externo e backup
-├── docs/              # plano, tickets, registros e as imagens deste README
+├── infra/             # compose de produção, banco externo, backup e a conta de leitura da banca
+├── docs/              # plano, documentos da entrega, tickets, registros e as imagens deste README
 └── openapi.json       # o contrato, de onde o front gera os tipos
 ```
 
@@ -482,6 +483,24 @@ fhdod-satisfacao-api/
 | [`docs/tickets/`](docs/tickets/) | O que fazer, um ticket por arquivo, espelhados nas issues |
 | [`docs/registros/`](docs/registros/) | O registro de cada entrega, com as decisões e o porquê |
 | [`openapi.json`](openapi.json) | O contrato da API; com ela rodando, o mesmo documento no Swagger, em `/api/docs` |
+
+**Documentos da entrega** (Criação de Sites e Banco de Dados):
+
+| Documento | Assunto |
+| --- | --- |
+| [`docs/requisitos.md`](docs/requisitos.md) | Especificação de requisitos (IEEE 830 e ISO/IEC 25010) e a rastreabilidade do briefing |
+| [`docs/arquitetura-backend.md`](docs/arquitetura-backend.md) | Arquitetura, padrões de projeto, segurança e escalabilidade do backend |
+| [`docs/padroes-git.md`](docs/padroes-git.md) | Branches, commits, pull requests, tickets e a contribuição de cada pessoa |
+| [`docs/plano-e-relatorio-de-testes.md`](docs/plano-e-relatorio-de-testes.md) | Estratégia de testes, execução, cobertura e falhas corrigidas |
+| [`docs/modelo-de-dados-e-requisitos.md`](docs/modelo-de-dados-e-requisitos.md) | Requisitos de dados, a escolha do relacional, o DER e o dicionário de dados |
+| [`docs/padroes-banco-de-dados.md`](docs/padroes-banco-de-dados.md) | Nomes de tabelas, colunas, chaves, restrições e índices |
+| [`docs/mapeamento-classes-e-consultas.md`](docs/mapeamento-classes-e-consultas.md) | As classes que acessam o banco e as consultas principais |
+| [`docs/seguranca-e-nuvem.md`](docs/seguranca-e-nuvem.md) | Banco em nuvem, controle de acesso, criptografia, backup e o acesso da banca |
+
+| Link | Endereço |
+| --- | --- |
+| Documentação online da API (Swagger) | Pendente: `https://<subdomínio da homologação>/api/docs`, quando a homologação subir (ticket 20). Até lá, `http://localhost:3333/api/docs` com a API rodando |
+| Quadro Kanban (GitHub Projects) | Pendente |
 
 <div align="center">
 <br>
