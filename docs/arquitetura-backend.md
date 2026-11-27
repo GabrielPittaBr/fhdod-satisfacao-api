@@ -59,11 +59,11 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    req([Requisição]) --> rid[request-id<br/>cria o X-Request-Id] --> log[http-logger<br/>método, rota, status, tempo] --> hel[helmet<br/>cabeçalhos seguros] --> cors[cors<br/>só a origem configurada] --> json["express.json (100 kB)<br/>e cookie-parser"]
+    req(["Requisição"]) --> rid["request-id<br/>cria o X-Request-Id"] --> log["http-logger<br/>método, rota, status, tempo"] --> hel["helmet<br/>cabeçalhos seguros"] --> cors["cors<br/>só a origem configurada"] --> json["express.json (100 kB)<br/>e cookie-parser"]
     json --> rotas{"/api/v1"}
-    rotas --> rl[rate-limit<br/>login e pesquisa pública] --> autn[authenticate ou tv-token] --> autz["authorize('permissão')"] --> esc[setor-scope] --> val["validate(schema)"] --> ctrl[controller] --> svc[service] --> repo[repository] --> db[(PostgreSQL)]
-    rotas -.rota inexistente.-> nf[not-found: 404]
-    ctrl -.erro.-> eh[error-handler<br/>sempre o último]
+    rotas --> rl["rate-limit<br/>login e pesquisa pública"] --> autn["authenticate ou tv-token"] --> autz["authorize('permissão')"] --> esc["setor-scope"] --> val["validate(schema)"] --> ctrl["controller"] --> svc["service"] --> repo["repository"] --> db[("PostgreSQL")]
+    rotas -. rota inexistente .-> nf["not-found: 404"]
+    ctrl -. erro .-> eh["error-handler<br/>sempre o último"]
 ```
 
 Cada rota declara os próprios middlewares, nesta ordem. Lendo a rota, dá para saber quem pode chamá-la e o que é validado. Exemplo real, de [`perguntas.routes.ts`](../src/modules/perguntas/perguntas.routes.ts):
@@ -107,7 +107,7 @@ No Express 5, um erro lançado numa função `async` chega sozinho ao `error-han
 - **TypeScript em modo `strict`**, ESLint (typescript-eslint) e Prettier, com `.editorconfig` e `.nvmrc`.
 - **Antes de cada commit**, o Husky roda o lint-staged (ESLint e Prettier nos arquivos alterados) e o commitlint (Conventional Commits, sem coautoria de ferramenta).
 - **CI em todo PR** ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)): lint, tipos, testes (com PostgreSQL 18 no GitHub Actions), conferência do `openapi.json` e build.
-- **631 testes em 54 arquivos**, com 98% das instruções e 93% das ramificações cobertas: o [plano e relatório de testes](plano-e-relatorio-de-testes.md) tem os detalhes.
+- **635 testes em 55 arquivos**, com 98% das instruções e 93% das ramificações cobertas: o [plano e relatório de testes](plano-e-relatorio-de-testes.md) tem os detalhes.
 - **Contrato conferido por teste:** `tests/contrato.test.ts` falha se uma rota não estiver documentada, se o documento tiver uma rota que não existe ou se o `openapi.json` não for o que o código gera.
 - **Uma regra num lugar só:** a classificação da nota e o NPS ficam só na API (`src/shared/rules/`), e o front recebe o resultado pronto.
 - **Cada entrega registrada** em `docs/registros/`, com as decisões e o que mudou em relação ao plano; o fluxo de trabalho está em [`padroes-git.md`](padroes-git.md).
