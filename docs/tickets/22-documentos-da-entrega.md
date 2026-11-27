@@ -8,35 +8,35 @@ Ficam fora deste ticket: o plano de negócios, o guia de estilos (que vai para o
 
 **Bloqueado por:** Nenhum — pode começar já.
 
-**Status:** in-progress
+**Status:** done
 
 **Critérios de aceite:**
 
-- [ ] `docs/requisitos.md`: especificação de requisitos no formato da IEEE 830, com:
+- [x] `docs/requisitos.md`: especificação de requisitos no formato da IEEE 830, com:
   - requisitos funcionais (`RF-`), não funcionais pelas características da ISO/IEC 25010 (`RNF-`) e regras de negócio (`RN-`), cada um com a origem, o critério de aceite, a rota ou tela e o teste que o verifica;
   - a matriz de rastreabilidade do briefing (pedido do cliente → regra → requisito → implementação → teste → situação), mostrando as divergências em vez de escondê-las: nota obrigatória, perfis, "tempo real", perguntas condicionais e escalas;
   - os itens de "Confirmar com o hospital", com o valor provisório e a resposta, quando houver.
-- [ ] `docs/arquitetura-backend.md`:
+- [x] `docs/arquitetura-backend.md`:
   - visão geral com diagrama, organização do código e ciclo da requisição;
   - os padrões de projeto (onde estão e por quê);
   - as justificativas de qualidade e manutenibilidade, segurança (autenticação, autorização, sanitização e proteção de rotas) e escalabilidade, com os limites atuais.
-- [ ] `docs/padroes-git.md`: branches, Conventional Commits e commitlint, fluxo de PR e revisão, tickets e Kanban, registros e contribuição de cada pessoa. Descreve o que o time faz de verdade e o que muda daqui em diante.
-- [ ] `docs/plano-e-relatorio-de-testes.md`:
+- [x] `docs/padroes-git.md`: branches, Conventional Commits e commitlint, fluxo de PR e revisão, tickets e Kanban, registros e contribuição de cada pessoa. Descreve o que o time faz de verdade e o que muda daqui em diante.
+- [x] `docs/plano-e-relatorio-de-testes.md`:
   - níveis e técnicas de teste dos dois repositórios, ambiente e critérios de entrada e saída;
   - relatório da execução na data, com a cobertura, as evidências do CI e as falhas corrigidas.
-- [ ] A API mede a cobertura dos testes com o `@vitest/coverage-v8`, num script próprio, e o relatório traz os números por pasta.
-- [ ] `docs/modelo-de-dados-e-requisitos.md`:
+- [x] A API mede a cobertura dos testes com o `@vitest/coverage-v8`, num script próprio, e o relatório traz os números por pasta.
+- [x] `docs/modelo-de-dados-e-requisitos.md`:
   - os requisitos de dados ligados ao briefing;
   - a justificativa formal de relacional × não relacional (o plano só compara PostgreSQL com MySQL);
   - o DER conceitual e o lógico em Mermaid, que o GitHub desenha no próprio documento, e o dicionário de dados das 14 tabelas;
   - chaves, restrições, índices, enums e normalização;
   - os scripts de criação e povoamento (`prisma/`) e como rodá-los.
-- [ ] `docs/padroes-banco-de-dados.md`: as convenções de nomes de tabelas, colunas, chaves, restrições, índices, enums e migrations, como estão no schema e na migration, com as exceções.
-- [ ] `docs/mapeamento-classes-e-consultas.md`:
+- [x] `docs/padroes-banco-de-dados.md`: as convenções de nomes de tabelas, colunas, chaves, restrições, índices, enums e migrations, como estão no schema e na migration, com as exceções.
+- [x] `docs/mapeamento-classes-e-consultas.md`:
   - o cliente Prisma, os models e os 13 repositórios (tabelas, operações, SQL puro e transações);
   - os auxiliares de `src/database/`;
   - as consultas críticas e frequentes, com junções, filtros, agregações e o índice que atende cada uma.
-- [ ] `docs/seguranca-e-nuvem.md`: hospedagem do banco, conexão com TLS, controle de acesso (no banco e na aplicação), criptografia, restrição de IP, prevenção de injeção, backup, LGPD, variáveis de ambiente e como a banca recebe o acesso.
-- [ ] O README ganha, em "Documentação", os oito documentos, o link da documentação online da API e o link do quadro Kanban. Os links que ainda não existem ficam marcados como pendentes.
-- [ ] Nada inventado: números e afirmações conferidos no código e no GitHub. O que não existe fica como pendência explícita. Nenhum segredo nem dado real nos documentos.
-- [ ] Registro da entrega.
+- [x] `docs/seguranca-e-nuvem.md`: hospedagem do banco, conexão com TLS, controle de acesso (no banco e na aplicação), criptografia, restrição de IP, prevenção de injeção, backup, LGPD, variáveis de ambiente e como a banca recebe o acesso.
+- [x] O README ganha, em "Documentação", os oito documentos, o link da documentação online da API e o link do quadro Kanban. Os links que ainda não existem ficam marcados como pendentes.
+- [x] Nada inventado: números e afirmações conferidos no código e no GitHub. O que não existe fica como pendência explícita. Nenhum segredo nem dado real nos documentos.
+- [x] Registro da entrega.
