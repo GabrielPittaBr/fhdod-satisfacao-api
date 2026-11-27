@@ -341,6 +341,7 @@ Node.js 26 (a versão fica no `.nvmrc`), pnpm 12 e Docker. O passo a passo para 
 | `pnpm test` | Testes unitários e de integração; os de integração usam o banco de teste |
 | `pnpm test --project unit` | Só os testes que não precisam de banco |
 | `pnpm test:watch` | Testes em modo de observação |
+| `pnpm test:cobertura` | Os mesmos testes, com a cobertura de `src/` (o `@vitest/coverage-v8`); a tabela sai no terminal e o HTML, em `coverage/` (fora do Git). O `pnpm test` e o CI não medem a cobertura |
 | `pnpm format` | Formata o código com o Prettier |
 | `pnpm openapi:exportar` | Grava o contrato da API em `openapi.json`, que é commitado junto com a mudança |
 | `pnpm db:generate` | Gera de novo o cliente do Prisma depois de mudar o `prisma/schema.prisma` |
@@ -391,6 +392,8 @@ O sistema inteiro sobe num servidor com os dois repositórios lado a lado, pelo 
 | Factories e helpers dos testes | [`tests/factories/`](tests/factories/) e [`tests/helpers/`](tests/helpers/) |
 | Tickets | [`docs/tickets/`](docs/tickets/) e as issues do GitHub |
 | Registros das entregas | [`docs/registros/`](docs/registros/) |
+| Documentos da entrega das disciplinas (ticket 22): requisitos e rastreabilidade, arquitetura, padrões de Git, testes, modelo de dados, padrões do banco, classes e consultas, nuvem e segurança | Os oito arquivos de [`docs/`](docs/) listados no README, em "Documentação". Uma mudança que os desatualiza (rota, tabela, coluna, índice, permissão, consulta do painel, regra de negócio) atualiza o documento no mesmo PR |
+| Conta só de leitura no banco, para a banca | [`infra/banco/leitura-da-banca.sql`](infra/banco/leitura-da-banca.sql); como usar em [`docs/seguranca-e-nuvem.md`](docs/seguranca-e-nuvem.md) |
 | Contrato da API (OpenAPI) | [`openapi.json`](openapi.json), montado em [`src/config/openapi.ts`](src/config/openapi.ts); com a API rodando, o Swagger em `/api/docs` |
 | Imagem da API, compose de produção, banco fora do servidor e backup | [`Dockerfile`](Dockerfile), [`infra/docker-compose.prod.yml`](infra/docker-compose.prod.yml), [`infra/docker-compose.banco-externo.yml`](infra/docker-compose.banco-externo.yml), [`infra/.env.example`](infra/.env.example) e [`infra/backup/`](infra/backup/) |
 | CI e modelo de pull request | [`.github/`](.github/) |

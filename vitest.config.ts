@@ -21,6 +21,15 @@ export default defineConfig({
       // Um IP de documentação (TEST-NET-3) no papel do IP do hospital, fora do limite de envios da pesquisa.
       RATE_LIMIT_ALLOWLIST: '203.0.113.10',
     },
+    // Só com `pnpm test:cobertura`: o `pnpm test` e o CI rodam sem instrumentar o código. Mede o código da API
+    // (`src/`) com os testes unitários e os de integração juntos; o cliente gerado pelo Prisma fica de fora.
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.ts'],
+      exclude: ['src/generated/**', 'src/**/*.test.ts'],
+      reporter: ['text', 'html', 'json-summary'],
+      reportsDirectory: 'coverage',
+    },
     projects: [
       {
         extends: true,
